@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>AI‑Powered Workout Planner</title>
+	<meta name="description" content="Личный план тренировок с поддержкой ИИ: быстро, просто и персонально.">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+	<header class="nav">
+		<div class="container nav__inner">
+			<div class="brand">
+				<span class="brand__logo">🤖</span>
+				<span class="brand__name">AI Workout Planner</span>
+			</div>
+			<nav class="nav__links">
+				<a href="#features">Возможности</a>
+				<a href="#how">Как это работает</a>
+				<a class="btn btn--primary" href="#planner">Открыть приложение</a>
+			</nav>
+		</div>
+	</header>
+
+	<main>
+		<section class="hero">
+			<div class="container hero__inner">
+				<h1 class="hero__title">AI‑Powered Workout Planner</h1>
+				<p class="hero__subtitle">Личный план тренировок за секунды. Укажите цель и условия — остальное сделает ИИ.</p>
+				<div class="hero__cta">
+					<a class="btn btn--primary btn--lg" href="#planner">Сгенерировать план</a>
+					<a class="btn btn--ghost btn--lg" href="#features">Узнать больше</a>
+				</div>
+			</div>
+			<div class="hero__bg" aria-hidden="true"></div>
+		</section>
+
+		<section id="features" class="section">
+			<div class="container">
+				<h2 class="section__title">Почему это удобно</h2>
+				<div class="features">
+					<div class="card feature">
+						<div class="feature__icon">✨</div>
+						<h3 class="feature__title">Персонализация</h3>
+						<p class="feature__desc">Планы под ваши цели, опыт, инвентарь и расписание.</p>
+					</div>
+					<div class="card feature">
+						<div class="feature__icon">📈</div>
+						<h3 class="feature__title">Умная периодизация</h3>
+						<p class="feature__desc">Нагрузка растёт постепенно для стабильного прогресса и без перегруза.</p>
+					</div>
+					<div class="card feature">
+						<div class="feature__icon">⏱️</div>
+						<h3 class="feature__title">Экономия времени</h3>
+						<p class="feature__desc">Готовый план за секунды — без бесконечных таблиц и поисков.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="how" class="section section--alt">
+			<div class="container">
+				<h2 class="section__title">Как это работает</h2>
+				<ol class="steps">
+					<li>Вы указываете цель, опыт и дни тренировок.</li>
+					<li>ИИ подбирает упражнения и распределяет нагрузку.</li>
+					<li>Получаете готовый план и рекомендации.</li>
+				</ol>
+			</div>
+		</section>
+
+		<section id="planner" class="section">
+			<div class="container">
+				<h2 class="section__title">Сгенерировать стартовый план</h2>
+				<form id="plannerForm" class="form card" autocomplete="off">
+					<div class="form__row">
+						<label for="goal">Цель</label>
+						<select id="goal" required>
+							<option value="fatloss">Похудение</option>
+							<option value="muscle">Набор массы</option>
+							<option value="strength">Сила</option>
+							<option value="endurance">Выносливость</option>
+						</select>
+					</div>
+
+					<div class="form__row">
+						<label for="experience">Опыт</label>
+						<select id="experience" required>
+							<option value="beginner">Новичок</option>
+							<option value="intermediate">Средний</option>
+							<option value="advanced">Продвинутый</option>
+						</select>
+					</div>
+
+					<div class="form__row">
+						<label for="days">Дней в неделю</label>
+						<input id="days" type="number" min="2" max="7" value="4" required>
+					</div>
+
+					<fieldset class="form__row">
+						<legend>Доступный инвентарь</legend>
+						<label class="checkbox"><input type="checkbox" name="equip" value="dumbbells"> Гантели</label>
+						<label class="checkbox"><input type="checkbox" name="equip" value="barbell"> Штанга</label>
+						<label class="checkbox"><input type="checkbox" name="equip" value="pullup"> Турник</label>
+						<label class="checkbox"><input type="checkbox" name="equip" value="machines"> Тренажёры</label>
+						<label class="checkbox"><input type="checkbox" name="equip" value="none"> Без оборудования</label>
+					</fieldset>
+
+					<div class="form__row">
+						<label for="notes">Пожелания/ограничения (необязательно)</label>
+						<textarea id="notes" rows="3" placeholder="Например: болит колено, избегать прыжков"></textarea>
+					</div>
+
+					<div class="form__actions">
+						<button class="btn btn--primary" type="submit">Сгенерировать план</button>
+						<button class="btn btn--ghost" type="reset">Сбросить</button>
+					</div>
+				</form>
+
+				<div id="planOutput" class="plan card" hidden>
+					<h3>Ваш стартовый план</h3>
+					<div class="plan__grid" id="planDays"></div>
+					<p class="muted" id="planNote"></p>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<div class="container footer__inner">
+			<span>© <span id="year"></span> AI Workout Planner</span>
+			<a href="#top" class="muted">Наверх ↑</a>
+		</div>
+	</footer>
+
+	<script defer src="app.js"></script>
+</body>
+</html>
+

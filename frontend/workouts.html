@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IRON AI - Choose Your Program</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="workouts-page">
+        <header class="workouts-header">
+            <button class="back-button" onclick="window.location.href='index.html'">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <h1 class="page-title">CHOOSE YOUR PROGRAM</h1>
+        </header>
+        
+        <main class="workouts-content">
+            <div class="program-card" onclick="selectProgram('foundational')">
+                <div class="program-header">
+                    <h2 class="program-title">FOUNDATIONAL BODYBUILDING</h2>
+                    <div class="program-badge">ELITE</div>
+                </div>
+                <p class="program-description">Build strength and muscle with proven compound movements</p>
+                <div class="program-stats">
+                    <span class="stat">4-6 weeks</span>
+                    <span class="stat">3-4x/week</span>
+                    <span class="stat">Progressive</span>
+                </div>
+                <div class="program-arrow">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="workouts.js"></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI-Powered Workout Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="container header-inner">
+            <h1>AI‑Powered Workout Planner</h1>
+            <p>Create a personalized plan in seconds. No sign‑up or API key required.</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="card" aria-labelledby="planner-title">
+            <h2 id="planner-title">Your Preferences</h2>
+            <form id="planner-form">
+                <div class="grid">
+                    <div class="form-field">
+                        <label for="goal">Primary goal</label>
+                        <select id="goal" name="goal" required>
+                            <option value="muscle">Build muscle</option>
+                            <option value="fat_loss">Lose fat</option>
+                            <option value="endurance">Improve endurance</option>
+                            <option value="strength">Get stronger</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="level">Experience level</label>
+                        <select id="level" name="level" required>
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="location">Location</label>
+                        <select id="location" name="location" required>
+                            <option value="home">Home</option>
+                            <option value="gym">Gym</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="days">Days per week: <span id="daysValue">3</span></label>
+                        <input type="range" id="days" name="days" min="2" max="6" step="1" value="3" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="minutes">Session length (min): <span id="minutesValue">45</span></label>
+                        <input type="range" id="minutes" name="minutes" min="20" max="90" step="5" value="45" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="split">Preferred split</label>
+                        <select id="split" name="split">
+                            <option value="auto">Auto</option>
+                            <option value="full_body">Full body</option>
+                            <option value="upper_lower">Upper/Lower</option>
+                            <option value="ppl">Push/Pull/Legs</option>
+                        </select>
+                    </div>
+                </div>
+
+                <fieldset class="form-field">
+                    <legend>Available equipment</legend>
+                    <div class="chips">
+                        <label class="chip"><input type="checkbox" name="equipment" value="bodyweight" checked /> Bodyweight</label>
+                        <label class="chip"><input type="checkbox" name="equipment" value="dumbbells" /> Dumbbells</label>
+                        <label class="chip"><input type="checkbox" name="equipment" value="barbell" /> Barbell</label>
+                        <label class="chip"><input type="checkbox" name="equipment" value="kettlebell" /> Kettlebell</label>
+                        <label class="chip"><input type="checkbox" name="equipment" value="bands" /> Resistance bands</label>
+                        <label class="chip"><input type="checkbox" name="equipment" value="machines" /> Machines</label>
+                    </div>
+                    <div class="form-field" style="margin-top: .75rem;">
+                        <label for="customEquipment">Custom equipment (comma separated)</label>
+                        <input id="customEquipment" name="customEquipment" type="text" placeholder="e.g., TRX, rower" />
+                    </div>
+                </fieldset>
+
+                <div class="form-field">
+                    <label for="notes">Injuries or preferences (optional)</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="e.g., avoid overhead pressing; mild knee pain"></textarea>
+                </div>
+
+                <div class="toggles">
+                    <label class="toggle"><input type="checkbox" id="warmup" checked /> Include warm‑up</label>
+                    <label class="toggle"><input type="checkbox" id="cooldown" checked /> Include cool‑down</label>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Generate plan</button>
+                    <button type="button" id="resetBtn" class="btn">Reset</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="card" aria-labelledby="result-title">
+            <div class="result-header">
+                <h2 id="result-title">Your Plan</h2>
+                <div class="result-actions">
+                    <button id="copyBtn" class="btn">Copy</button>
+                    <button id="downloadBtn" class="btn">Download JSON</button>
+                    <button id="printBtn" class="btn">Print</button>
+                </div>
+            </div>
+            <div id="result" class="result"></div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <small>Local generator. You can later wire this to your own API.</small>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        // Inline bindings for range value displays
+        const days = document.getElementById('days');
+        const daysValue = document.getElementById('daysValue');
+        const minutes = document.getElementById('minutes');
+        const minutesValue = document.getElementById('minutesValue');
+        function syncRangeDisplays() {
+            daysValue.textContent = days.value;
+            minutesValue.textContent = minutes.value;
+        }
+        days.addEventListener('input', syncRangeDisplays);
+        minutes.addEventListener('input', syncRangeDisplays);
+        syncRangeDisplays();
+    </script>
+</body>
+</html>
+
+

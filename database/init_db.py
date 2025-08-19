@@ -1,12 +1,3 @@
-"""
-Initialize SQLite database with a single table `workouts` containing three columns:
-- упражнение (TEXT, NOT NULL)
-- сеты (INTEGER)
-- подходы (INTEGER)
-
-Run this file directly to (re)create the table if it does not exist.
-"""
-
 from pathlib import Path
 import sqlite3
 
@@ -21,9 +12,9 @@ def init_db(db_path: Path) -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS workouts (
-                [упражнение] TEXT NOT NULL,
-                [сеты] INTEGER,
-                [подходы] INTEGER
+                [EXERCISE] TEXT NOT NULL,
+                [SETS] INTEGER,
+                [REPS] INTEGER
             )
             """
         )

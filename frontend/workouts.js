@@ -1,19 +1,16 @@
 // Workouts page functionality
 function selectProgram(programType) {
-    // Add visual feedback
     const card = event.currentTarget;
     card.style.transform = 'scale(0.98)';
     
     setTimeout(() => {
         card.style.transform = '';
-        
-        // For now, just show an alert
-        // Later this can redirect to a specific program page
-        alert(`Selected: ${programType.toUpperCase()} program\n\nThis feature is coming soon!`);
-        
-        // You can add navigation logic here:
-        // window.location.href = `program-${programType}.html`;
-    }, 150);
+        if (programType === 'foundational') {
+            window.location.href = 'program-foundational.html';
+            return;
+        }
+        alert(`Selected: ${programType.toUpperCase()} program`);
+    }, 120);
 }
 
 // Add hover effects for program cards

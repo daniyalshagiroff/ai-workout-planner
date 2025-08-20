@@ -81,6 +81,7 @@ def init_db(db_path: Path) -> None:
             id        INTEGER PRIMARY KEY,
             week_id   INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
             name      TEXT,
+            emphasis  TEXT,
             day_order INTEGER NOT NULL,
             UNIQUE(week_id, day_order)
         );

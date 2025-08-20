@@ -321,6 +321,102 @@ body {
     transform: translateY(-50%) translateX(4px);
 }
 
+/* Program detail page */
+.program-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding: 2rem 1rem 4rem;
+}
+
+.program-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto 2rem;
+}
+
+.header-texts .page-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.header-texts .page-subtitle {
+    color: var(--text-secondary);
+}
+
+.program-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.days-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+    gap: 1.25rem;
+    justify-content: center;
+}
+
+.day-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.day-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 62, 62, 0.08), transparent);
+    transition: left 0.5s ease;
+}
+
+.day-card:hover::before { left: 100%; }
+
+.day-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.day-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.emphasis-badge {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--text-primary);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.exercise-list { list-style: none; margin: 0; padding: 0; }
+.exercise-item {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    padding: 0.6rem 0.4rem;
+    border-bottom: 1px dashed var(--card-border);
+}
+.exercise-item:last-child { border-bottom: none; }
+
+.exercise-name { font-weight: 600; }
+.exercise-meta { color: var(--text-secondary); font-size: 0.9rem; }
+
 /* Responsive design */
 @media (max-width: 768px) {
     .site-title {
@@ -376,6 +472,14 @@ body {
     .hero-content {
         padding: 0 1rem;
     }
+}
+
+@media (max-width: 960px) {
+    .days-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+}
+
+@media (max-width: 640px) {
+    .days-grid { grid-template-columns: 1fr; }
 }
 
 

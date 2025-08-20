@@ -1,27 +1,12 @@
 async function fetchProgramData() {
-    try {
-        // Fetch from FastAPI endpoint
-        const res = await fetch('/api/programs/Full Body/export', { 
-            cache: 'no-store',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return await res.json();
-    } catch (e) {
-        console.error('Failed to fetch program data:', e);
-        // Fallback: minimal mock if API not available
-        return {
-            program: { name: 'Full Body', days_per_week: 3 },
-            week: { week_no: 1 },
-            days: [
-                { label: 'Day 1', emphasis: 'chest', exercises: ['barbell squat', 'bench press', 'pulldown', 'biceps curls', 'triceps pushdown'] },
-                { label: 'Day 2', emphasis: 'back', exercises: ['barbell squat', 'bench press', 'pulldown', 'biceps curls', 'triceps pushdown'] },
-                { label: 'Day 3', emphasis: 'legs', exercises: ['barbell squat', 'bench press', 'pulldown', 'biceps curls', 'triceps pushdown'] },
-            ]
-        };
-    }
+    const res = await fetch('/api/programs/Full Body/export', { 
+        cache: 'no-store',
+        headers: {
+            'Accept': 'application/json'
+        }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    return await res.json();
 }
 
 function capital(s) { return s.charAt(0).toUpperCase() + s.slice(1); }

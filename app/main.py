@@ -18,13 +18,13 @@ app = FastAPI(
 )
 
 # Serve static files (frontend)
-app.mount("/static", StaticFiles(directory="../frontend"), name="static")
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 
 @app.get("/")
 async def root():
     """Serve the main landing page."""
-    return FileResponse("../frontend/index.html")
+    return FileResponse("frontend/index.html")
 
 
 @app.get("/api/programs/{program_name}/export")

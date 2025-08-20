@@ -6,7 +6,7 @@ function selectProgram(programType) {
     setTimeout(() => {
         card.style.transform = '';
         if (programType === 'foundational') {
-            window.location.href = 'program-foundational.html';
+            window.location.href = '/static/program-foundational.html';
             return;
         }
         alert(`Selected: ${programType.toUpperCase()} program`);

@@ -3,7 +3,7 @@ Business logic layer for workout program operations.
 Contains high-level business logic and orchestrates repository calls.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from . import repo
@@ -15,13 +15,68 @@ class ProgramNotFoundError(Exception):
     pass
 
 
-class NoCycleError(Exception):
-    """Raised when no cycle exists for a program."""
+class ProgramAlreadyExistsError(Exception):
+    """Raised when a program already exists."""
     pass
 
 
-class NoWeekError(Exception):
-    """Raised when no week exists for a cycle."""
+class CycleNotFoundError(Exception):
+    """Raised when a cycle is not found."""
+    pass
+
+
+class CycleAlreadyExistsError(Exception):
+    """Raised when a cycle already exists."""
+    pass
+
+
+class WeekNotFoundError(Exception):
+    """Raised when a week is not found."""
+    pass
+
+
+class WeekAlreadyExistsError(Exception):
+    """Raised when a week already exists."""
+    pass
+
+
+class TrainingDayNotFoundError(Exception):
+    """Raised when a training day is not found."""
+    pass
+
+
+class TrainingDayAlreadyExistsError(Exception):
+    """Raised when a training day already exists."""
+    pass
+
+
+class ExerciseNotFoundError(Exception):
+    """Raised when an exercise is not found."""
+    pass
+
+
+class ExerciseAlreadyExistsError(Exception):
+    """Raised when an exercise already exists."""
+    pass
+
+
+class DayExerciseNotFoundError(Exception):
+    """Raised when a day exercise is not found."""
+    pass
+
+
+class DayExerciseAlreadyExistsError(Exception):
+    """Raised when a day exercise already exists."""
+    pass
+
+
+class SetNotFoundError(Exception):
+    """Raised when a set is not found."""
+    pass
+
+
+class SetAlreadyExistsError(Exception):
+    """Raised when a set already exists."""
     pass
 
 
@@ -123,6 +178,283 @@ async def get_program_detail(program_name: str) -> schemas.ProgramDetail:
             started_at=cycle.started_at
         ) if cycle else None
     )
+
+
+async def create_program(name: str, days_per_week: int) -> schemas.ProgramSummary:
+    """Create a new program."""
+    # Check if program already exists
+    existing = repo.get_program_by_name(name)
+    if existing:
+        raise ProgramAlreadyExistsError(f"Program '{name}' already exists")
+    
+    program = repo.create_program(name, days_per_week)
+    return schemas.ProgramSummary(
+        id=program.id,
+        name=program.name,
+        days_per_week=program.days_per_week
+    )
+
+
+async def get_program_by_id(program_id: int) -> schemas.ProgramDetail:
+    """Get program by ID."""
+    program = repo.get_program_by_id(program_id)
+    if not program:
+        raise ProgramNotFoundError(f"Program with ID {program_id} not found")
+    
+    cycle = repo.get_latest_cycle(program.id)
+    return schemas.ProgramDetail(
+        id=program.id,
+        name=program.name,
+        days_per_week=program.days_per_week,
+        latest_cycle=schemas.CycleInfo(
+            id=cycle.id,
+            cycle_no=cycle.cycle_no,
+            started_at=cycle.started_at
+        ) if cycle else None
+    )
+
+
+async def create_cycle(program_id: int, cycle_no: int) -> schemas.CycleInfo:
+    """Create a new cycle for a program."""
+    # Check if program exists
+    program = repo.get_program_by_id(program_id)
+    if not program:
+        raise ProgramNotFoundError(f"Program with ID {program_id} not found")
+    
+    # Check if cycle already exists
+    existing_cycles = repo.list_cycles_by_program(program_id)
+    if any(c.cycle_no == cycle_no for c in existing_cycles):
+        raise CycleAlreadyExistsError(f"Cycle {cycle_no} already exists for program {program_id}")
+    
+    cycle = repo.create_cycle(program_id, cycle_no, datetime.now().isoformat())
+    return schemas.CycleInfo(
+        id=cycle.id,
+        cycle_no=cycle.cycle_no,
+        started_at=cycle.started_at
+    )
+
+
+async def list_cycles(program_id: int) -> List[schemas.CycleInfo]:
+    """List all cycles for a program."""
+    # Check if program exists
+    program = repo.get_program_by_id(program_id)
+    if not program:
+        raise ProgramNotFoundError(f"Program with ID {program_id} not found")
+    
+    cycles = repo.list_cycles_by_program(program_id)
+    return [
+        schemas.CycleInfo(
+            id=cycle.id,
+            cycle_no=cycle.cycle_no,
+            started_at=cycle.started_at
+        )
+        for cycle in cycles
+    ]
+
+
+async def create_week(cycle_id: int, week_no: int) -> schemas.WeekInfo:
+    """Create a new week in a cycle."""
+    # Check if cycle exists
+    cycle = repo.get_cycle_by_id(cycle_id)
+    if not cycle:
+        raise CycleNotFoundError(f"Cycle with ID {cycle_id} not found")
+    
+    # Check if week already exists
+    existing_weeks = repo.list_weeks_by_cycle(cycle_id)
+    if any(w.week_no == week_no for w in existing_weeks):
+        raise WeekAlreadyExistsError(f"Week {week_no} already exists for cycle {cycle_id}")
+    
+    week = repo.create_week(cycle_id, week_no)
+    return schemas.WeekInfo(week_no=week.week_no)
+
+
+async def list_weeks(cycle_id: int) -> List[schemas.WeekInfo]:
+    """List all weeks in a cycle."""
+    # Check if cycle exists
+    cycle = repo.get_cycle_by_id(cycle_id)
+    if not cycle:
+        raise CycleNotFoundError(f"Cycle with ID {cycle_id} not found")
+    
+    weeks = repo.list_weeks_by_cycle(cycle_id)
+    return [schemas.WeekInfo(week_no=week.week_no) for week in weeks]
+
+
+async def create_training_day(week_id: int, name: Optional[str], emphasis: Optional[str], day_order: int) -> schemas.TrainingDayInfo:
+    """Create a new training day in a week."""
+    # Check if week exists
+    week = repo.get_week_by_id(week_id)
+    if not week:
+        raise WeekNotFoundError(f"Week with ID {week_id} not found")
+    
+    # Check if day already exists
+    existing_days = repo.list_training_days_by_week(week_id)
+    if any(d.day_order == day_order for d in existing_days):
+        raise TrainingDayAlreadyExistsError(f"Day {day_order} already exists for week {week_id}")
+    
+    day = repo.create_training_day(week_id, name, emphasis, day_order)
+    return schemas.TrainingDayInfo(
+        id=day.id,
+        week_id=day.week_id,
+        name=day.name,
+        emphasis=day.emphasis,
+        day_order=day.day_order
+    )
+
+
+async def list_training_days(week_id: int) -> List[schemas.TrainingDayInfo]:
+    """List all training days in a week."""
+    # Check if week exists
+    week = repo.get_week_by_id(week_id)
+    if not week:
+        raise WeekNotFoundError(f"Week with ID {week_id} not found")
+    
+    days = repo.list_training_days_by_week(week_id)
+    return [
+        schemas.TrainingDayInfo(
+            id=day.id,
+            week_id=day.week_id,
+            name=day.name,
+            emphasis=day.emphasis,
+            day_order=day.day_order
+        )
+        for day in days
+    ]
+
+
+async def create_exercise(name: str, equipment: str, target_muscle: str) -> schemas.ExerciseInfo:
+    """Create a new exercise in the catalog."""
+    # Check if exercise already exists
+    existing = repo.get_exercise_by_name(name)
+    if existing:
+        raise ExerciseAlreadyExistsError(f"Exercise '{name}' already exists")
+    
+    exercise = repo.create_exercise(name, equipment, target_muscle)
+    return schemas.ExerciseInfo(
+        id=exercise.id,
+        name=exercise.name,
+        equipment=exercise.equipment,
+        target_muscle=exercise.target_muscle
+    )
+
+
+async def list_exercises() -> List[schemas.ExerciseInfo]:
+    """List all exercises."""
+    exercises = repo.list_all_exercises()
+    return [
+        schemas.ExerciseInfo(
+            id=exercise.id,
+            name=exercise.name,
+            equipment=exercise.equipment,
+            target_muscle=exercise.target_muscle
+        )
+        for exercise in exercises
+    ]
+
+
+async def create_day_exercise(training_day_id: int, exercise_id: int, ex_order: int, priority_weight: Optional[float] = None) -> schemas.DayExerciseInfo:
+    """Add an exercise to a training day."""
+    # Check if training day exists
+    day = repo.get_training_day_by_id(training_day_id)
+    if not day:
+        raise TrainingDayNotFoundError(f"Training day with ID {training_day_id} not found")
+    
+    # Check if exercise exists
+    exercise = repo.get_exercise_by_id(exercise_id)
+    if not exercise:
+        raise ExerciseNotFoundError(f"Exercise with ID {exercise_id} not found")
+    
+    # Check if day exercise already exists
+    existing_exercises = repo.list_day_exercises_by_training_day(training_day_id)
+    if any(de.ex_order == ex_order for de in existing_exercises):
+        raise DayExerciseAlreadyExistsError(f"Exercise order {ex_order} already exists for training day {training_day_id}")
+    
+    day_exercise = repo.add_exercise_to_day(training_day_id, exercise_id, ex_order)
+    return schemas.DayExerciseInfo(
+        id=day_exercise.id,
+        training_day_id=day_exercise.training_day_id,
+        exercise_id=day_exercise.exercise_id,
+        ex_order=day_exercise.ex_order,
+        priority_weight=priority_weight,
+        exercise=schemas.ExerciseInfo(
+            id=exercise.id,
+            name=exercise.name,
+            equipment=exercise.equipment,
+            target_muscle=exercise.target_muscle
+        )
+    )
+
+
+async def list_day_exercises(training_day_id: int) -> List[schemas.DayExerciseInfo]:
+    """List all exercises for a training day."""
+    # Check if training day exists
+    day = repo.get_training_day_by_id(training_day_id)
+    if not day:
+        raise TrainingDayNotFoundError(f"Training day with ID {training_day_id} not found")
+    
+    day_exercises = repo.list_day_exercises_by_training_day(training_day_id)
+    result = []
+    for de in day_exercises:
+        exercise = repo.get_exercise_by_id(de.exercise_id)
+        result.append(schemas.DayExerciseInfo(
+            id=de.id,
+            training_day_id=de.training_day_id,
+            exercise_id=de.exercise_id,
+            ex_order=de.ex_order,
+            priority_weight=None,  # Not stored in DB yet
+            exercise=schemas.ExerciseInfo(
+                id=exercise.id,
+                name=exercise.name,
+                equipment=exercise.equipment,
+                target_muscle=exercise.target_muscle
+            )
+        ))
+    return result
+
+
+async def create_set(day_exercise_id: int, set_order: int, target_weight: Optional[float] = None) -> schemas.SetInfo:
+    """Create a new set for a day exercise."""
+    # Check if day exercise exists
+    day_exercise = repo.get_day_exercise_by_id(day_exercise_id)
+    if not day_exercise:
+        raise DayExerciseNotFoundError(f"Day exercise with ID {day_exercise_id} not found")
+    
+    # Check if set already exists
+    existing_sets = repo.list_sets_by_day_exercise(day_exercise_id)
+    if any(s.set_order == set_order for s in existing_sets):
+        raise SetAlreadyExistsError(f"Set {set_order} already exists for day exercise {day_exercise_id}")
+    
+    set_obj = repo.create_set(day_exercise_id, set_order, target_weight)
+    return schemas.SetInfo(
+        id=set_obj.id,
+        set_order=set_obj.set_order,
+        target_weight=set_obj.target_weight,
+        notes=set_obj.notes,
+        rpe=set_obj.rpe,
+        rep=set_obj.rep,
+        weight=set_obj.weight
+    )
+
+
+async def list_sets(day_exercise_id: int) -> List[schemas.SetInfo]:
+    """List all sets for a day exercise."""
+    # Check if day exercise exists
+    day_exercise = repo.get_day_exercise_by_id(day_exercise_id)
+    if not day_exercise:
+        raise DayExerciseNotFoundError(f"Day exercise with ID {day_exercise_id} not found")
+    
+    sets = repo.list_sets_by_day_exercise(day_exercise_id)
+    return [
+        schemas.SetInfo(
+            id=set_obj.id,
+            set_order=set_obj.set_order,
+            target_weight=set_obj.target_weight,
+            notes=set_obj.notes,
+            rpe=set_obj.rpe,
+            rep=set_obj.rep,
+            weight=set_obj.weight
+        )
+        for set_obj in sets
+    ]
 
 
 def seed_foundational_program() -> None:

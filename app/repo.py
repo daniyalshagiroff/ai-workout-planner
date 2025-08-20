@@ -365,3 +365,234 @@ def list_all_exercises() -> List[Exercise]:
             )
             for row in cur.fetchall()
         ]
+
+
+def get_program_by_id(program_id: int) -> Optional[Program]:
+    """Get program by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, name, days_per_week FROM programs WHERE id = ?",
+            (program_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return Program(
+            id=row["id"],
+            name=row["name"],
+            days_per_week=row["days_per_week"]
+        )
+
+
+def get_cycle_by_id(cycle_id: int) -> Optional[ProgramCycle]:
+    """Get cycle by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, program_id, cycle_no, started_at FROM program_cycles WHERE id = ?",
+            (cycle_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return ProgramCycle(
+            id=row["id"],
+            program_id=row["program_id"],
+            cycle_no=row["cycle_no"],
+            started_at=row["started_at"]
+        )
+
+
+def list_cycles_by_program(program_id: int) -> List[ProgramCycle]:
+    """Get all cycles for a program."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, program_id, cycle_no, started_at FROM program_cycles WHERE program_id = ? ORDER BY cycle_no",
+            (program_id,)
+        )
+        return [
+            ProgramCycle(
+                id=row["id"],
+                program_id=row["program_id"],
+                cycle_no=row["cycle_no"],
+                started_at=row["started_at"]
+            )
+            for row in cur.fetchall()
+        ]
+
+
+def get_week_by_id(week_id: int) -> Optional[Week]:
+    """Get week by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, cycle_id, week_no FROM weeks WHERE id = ?",
+            (week_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return Week(
+            id=row["id"],
+            cycle_id=row["cycle_id"],
+            week_no=row["week_no"]
+        )
+
+
+def list_weeks_by_cycle(cycle_id: int) -> List[Week]:
+    """Get all weeks for a cycle."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, cycle_id, week_no FROM weeks WHERE cycle_id = ? ORDER BY week_no",
+            (cycle_id,)
+        )
+        return [
+            Week(
+                id=row["id"],
+                cycle_id=row["cycle_id"],
+                week_no=row["week_no"]
+            )
+            for row in cur.fetchall()
+        ]
+
+
+def get_training_day_by_id(day_id: int) -> Optional[TrainingDay]:
+    """Get training day by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, week_id, name, emphasis, day_order FROM training_days WHERE id = ?",
+            (day_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return TrainingDay(
+            id=row["id"],
+            week_id=row["week_id"],
+            name=row["name"],
+            emphasis=row["emphasis"],
+            day_order=row["day_order"]
+        )
+
+
+def list_training_days_by_week(week_id: int) -> List[TrainingDay]:
+    """Get all training days for a week."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, week_id, name, emphasis, day_order FROM training_days WHERE week_id = ? ORDER BY day_order",
+            (week_id,)
+        )
+        return [
+            TrainingDay(
+                id=row["id"],
+                week_id=row["week_id"],
+                name=row["name"],
+                emphasis=row["emphasis"],
+                day_order=row["day_order"]
+            )
+            for row in cur.fetchall()
+        ]
+
+
+def get_exercise_by_id(exercise_id: int) -> Optional[Exercise]:
+    """Get exercise by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, name, equipment, target_muscle FROM exercises WHERE id = ?",
+            (exercise_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return Exercise(
+            id=row["id"],
+            name=row["name"],
+            equipment=row["equipment"],
+            target_muscle=row["target_muscle"]
+        )
+
+
+def get_exercise_by_name(name: str) -> Optional[Exercise]:
+    """Get exercise by name."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, name, equipment, target_muscle FROM exercises WHERE name = ?",
+            (name,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return Exercise(
+            id=row["id"],
+            name=row["name"],
+            equipment=row["equipment"],
+            target_muscle=row["target_muscle"]
+        )
+
+
+def get_day_exercise_by_id(day_exercise_id: int) -> Optional[DayExercise]:
+    """Get day exercise by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, training_day_id, exercise_id, ex_order FROM day_exercises WHERE id = ?",
+            (day_exercise_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return DayExercise(
+            id=row["id"],
+            training_day_id=row["training_day_id"],
+            exercise_id=row["exercise_id"],
+            ex_order=row["ex_order"]
+        )
+
+
+def list_day_exercises_by_training_day(training_day_id: int) -> List[DayExercise]:
+    """Get all day exercises for a training day."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, training_day_id, exercise_id, ex_order FROM day_exercises WHERE training_day_id = ? ORDER BY ex_order",
+            (training_day_id,)
+        )
+        return [
+            DayExercise(
+                id=row["id"],
+                training_day_id=row["training_day_id"],
+                exercise_id=row["exercise_id"],
+                ex_order=row["ex_order"]
+            )
+            for row in cur.fetchall()
+        ]
+
+
+def list_sets_by_day_exercise(day_exercise_id: int) -> List[Set]:
+    """Get all sets for a day exercise."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, day_exercise_id, set_order, target_weight, notes, rpe, rep, weight FROM sets WHERE day_exercise_id = ? ORDER BY set_order",
+            (day_exercise_id,)
+        )
+        return [
+            Set(
+                id=row["id"],
+                day_exercise_id=row["day_exercise_id"],
+                set_order=row["set_order"],
+                target_weight=row["target_weight"],
+                notes=row["notes"],
+                rpe=row["rpe"],
+                rep=row["rep"],
+                weight=row["weight"]
+            )
+            for row in cur.fetchall()
+        ]

@@ -129,11 +129,39 @@ class CreateProgramRequest(BaseModel):
     days_per_week: int = Field(..., description="Number of training days per week", ge=1, le=7)
 
 
+class CreateCycleRequest(BaseModel):
+    """Request model for creating a new cycle."""
+    program_id: int = Field(..., description="Program ID")
+    cycle_no: int = Field(..., description="Cycle number", ge=1)
+
+
+class CreateWeekRequest(BaseModel):
+    """Request model for creating a new week."""
+    cycle_id: int = Field(..., description="Cycle ID")
+    week_no: int = Field(..., description="Week number", ge=1)
+
+
+class CreateTrainingDayRequest(BaseModel):
+    """Request model for creating a new training day."""
+    week_id: int = Field(..., description="Week ID")
+    name: Optional[str] = Field(None, description="Day name", max_length=100)
+    emphasis: Optional[str] = Field(None, description="Day emphasis", max_length=50)
+    day_order: int = Field(..., description="Day order within week", ge=1)
+
+
 class CreateExerciseRequest(BaseModel):
     """Request model for creating a new exercise."""
     name: str = Field(..., description="Exercise name", min_length=1, max_length=100)
     equipment: str = Field(..., description="Required equipment", min_length=1, max_length=50)
     target_muscle: str = Field(..., description="Target muscle group", min_length=1, max_length=50)
+
+
+class CreateDayExerciseRequest(BaseModel):
+    """Request model for creating a new day exercise."""
+    training_day_id: int = Field(..., description="Training day ID")
+    exercise_id: int = Field(..., description="Exercise ID")
+    ex_order: int = Field(..., description="Exercise order within day", ge=1)
+    priority_weight: Optional[float] = Field(None, description="Priority weight for the exercise", ge=0)
 
 
 class CreateSetRequest(BaseModel):
@@ -145,3 +173,23 @@ class CreateSetRequest(BaseModel):
     rpe: Optional[float] = Field(None, description="Rate of perceived exertion", ge=1, le=10)
     rep: Optional[int] = Field(None, description="Number of reps", ge=1)
     weight: Optional[float] = Field(None, description="Actual weight used", ge=0)
+
+
+# Additional response models
+class TrainingDayInfo(BaseModel):
+    """Training day information."""
+    id: int = Field(..., description="Training day ID")
+    week_id: int = Field(..., description="Week ID")
+    name: Optional[str] = Field(None, description="Day name")
+    emphasis: Optional[str] = Field(None, description="Day emphasis")
+    day_order: int = Field(..., description="Day order within week")
+
+
+class DayExerciseInfo(BaseModel):
+    """Day exercise information."""
+    id: int = Field(..., description="Day exercise ID")
+    training_day_id: int = Field(..., description="Training day ID")
+    exercise_id: int = Field(..., description="Exercise ID")
+    ex_order: int = Field(..., description="Exercise order within day")
+    priority_weight: Optional[float] = Field(None, description="Priority weight")
+    exercise: ExerciseInfo = Field(..., description="Exercise information")

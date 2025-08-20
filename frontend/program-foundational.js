@@ -1,11 +1,17 @@
 async function fetchProgramData() {
-    // This demo fetches from a generated JSON endpoint later. For now, attempt to fetch a JSON file.
     try {
-        const res = await fetch('program-foundational.json', { cache: 'no-store' });
-        if (!res.ok) throw new Error('No JSON export found');
+        // Fetch from FastAPI endpoint
+        const res = await fetch('/api/programs/Full Body/export', { 
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         return await res.json();
     } catch (e) {
-        // Fallback: minimal mock if JSON not found
+        console.error('Failed to fetch program data:', e);
+        // Fallback: minimal mock if API not available
         return {
             program: { name: 'Full Body', days_per_week: 3 },
             week: { week_no: 1 },

@@ -86,8 +86,11 @@ function selectDay(dayId, dayName) {
     card.style.transform = 'scale(0.98)';
     setTimeout(() => {
         card.style.transform = '';
-        // For now, just show an alert. In the future, this could navigate to a workout session page
-        alert(`Starting workout for ${dayName}`);
+        // Navigate to workout session page
+        const urlParams = new URLSearchParams(window.location.search);
+        const week = urlParams.get('week');
+        const day = dayId;
+        window.location.href = `/static/workout-session.html?week=${week}&day=${day}&dayId=${dayId}`;
     }, 150);
 }
 

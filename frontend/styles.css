@@ -724,4 +724,184 @@ body {
     .days-grid { grid-template-columns: 1fr; }
 }
 
+/* Workout session page */
+.workout-session-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.workout-session-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.workout-session-content {
+    padding: 40px 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.exercises-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.exercise-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.exercise-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 8px 32px rgba(255, 62, 62, 0.1);
+}
+
+.exercise-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.exercise-header:hover {
+    background: rgba(255, 62, 62, 0.05);
+}
+
+.exercise-info {
+    flex: 1;
+}
+
+.exercise-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+}
+
+.exercise-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.equipment, .target-muscle {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: capitalize;
+}
+
+.exercise-toggle {
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.exercise-sets {
+    border-top: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.set-row {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.set-row:last-child {
+    border-bottom: none;
+}
+
+.set-row.completed {
+    background: rgba(0, 255, 0, 0.1);
+    border-color: rgba(0, 255, 0, 0.3);
+}
+
+.set-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.set-number {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.target-weight {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.set-inputs {
+    display: flex;
+    gap: 12px;
+    margin: 0 20px;
+}
+
+.weight-input, .reps-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    width: 80px;
+    transition: all 0.3s ease;
+}
+
+.weight-input:focus, .reps-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(255, 62, 62, 0.2);
+}
+
+.weight-input:disabled, .reps-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.complete-set-btn {
+    background: transparent;
+    border: 2px solid var(--text-secondary);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-secondary);
+}
+
+.complete-set-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: scale(1.05);
+}
+
+.complete-set-btn.completed {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
 

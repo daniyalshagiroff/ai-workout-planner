@@ -188,15 +188,31 @@ def main() -> None:
         # Exercises
         name_to_ex_id = get_or_create_exercises(conn, EXERCISES)
 
-        # Training days: 3 days with emphasis
-        emphases = ["chest", "back", "legs"]
-        exercise_order = [
-            name_to_ex_id["barbell squat"],
-            name_to_ex_id["bench press"],
-            name_to_ex_id["pulldown"],
-            name_to_ex_id["biceps curls"],
-            name_to_ex_id["triceps pushdown"],
-        ]
+        # Define exercise orders for different emphases
+        exercise_orders = {
+            "chest": [
+                name_to_ex_id["bench press"],      # 1. Chest first
+                name_to_ex_id["barbell squat"],    # 2. Legs
+                name_to_ex_id["pulldown"],         # 3. Back
+                name_to_ex_id["triceps pushdown"], # 4. Triceps (chest accessory)
+                name_to_ex_id["biceps curls"],     # 5. Biceps
+            ],
+            "back": [
+                name_to_ex_id["pulldown"],         # 1. Back first
+                name_to_ex_id["barbell squat"],    # 2. Legs
+                name_to_ex_id["bench press"],      # 3. Chest
+                name_to_ex_id["biceps curls"],     # 4. Biceps (back accessory)
+                name_to_ex_id["triceps pushdown"], # 5. Triceps
+            ],
+            "legs": [
+                name_to_ex_id["barbell squat"],    # 1. Legs first
+                name_to_ex_id["bench press"],      # 2. Chest
+                name_to_ex_id["pulldown"],         # 3. Back
+                name_to_ex_id["biceps curls"],     # 4. Biceps
+                name_to_ex_id["triceps pushdown"], # 5. Triceps
+            ]
+        }
+        
         default_weights_map = {
             name_to_ex_id["barbell squat"]: 80.0,
             name_to_ex_id["bench press"]: 60.0,
@@ -205,8 +221,15 @@ def main() -> None:
             name_to_ex_id["triceps pushdown"]: 25.0,
         }
 
+        # Training days: 3 days with emphasis
+        emphases = ["chest", "back", "legs"]
+
         for i, emphasis in enumerate(emphases, start=1):
             day_id = create_training_day(conn, week_id, name="Full Body", emphasis=emphasis, day_order=i)
+            
+            # Use the appropriate exercise order for this emphasis
+            exercise_order = exercise_orders[emphasis]
+            
             day_ex_ids = add_day_exercises(conn, day_id, exercise_order)
             day_ex_ids_with_weights = [(dx_id, default_weights_map.get(ex_id)) for dx_id, ex_id in zip(day_ex_ids, exercise_order)]
             add_sets_for_day_exercises(conn, day_ex_ids_with_weights, sets_per_exercise=2)

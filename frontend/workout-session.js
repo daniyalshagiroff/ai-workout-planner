@@ -10,39 +10,6 @@ function getDefaultWeight(exerciseName) {
     return weights[exerciseName.toLowerCase()] || 50.0;
 }
 
-// Helper function to get fallback exercises
-function getFallbackExercises() {
-    return [
-        {
-            id: 1,
-            exercise: { name: 'Barbell Squat', equipment: 'barbell', target_muscle: 'quads' },
-            ex_order: 1,
-            sets: [
-                { id: 1, set_order: 1, target_weight: 80.0 },
-                { id: 2, set_order: 2, target_weight: 80.0 }
-            ]
-        },
-        {
-            id: 2,
-            exercise: { name: 'Bench Press', equipment: 'barbell', target_muscle: 'chest' },
-            ex_order: 2,
-            sets: [
-                { id: 3, set_order: 1, target_weight: 60.0 },
-                { id: 4, set_order: 2, target_weight: 60.0 }
-            ]
-        },
-        {
-            id: 3,
-            exercise: { name: 'Pulldown', equipment: 'cable', target_muscle: 'lats' },
-            ex_order: 3,
-            sets: [
-                { id: 5, set_order: 1, target_weight: 40.0 },
-                { id: 6, set_order: 2, target_weight: 40.0 }
-            ]
-        }
-    ];
-}
-
 async function fetchDayExercises(dayId) {
     console.log('Fetching exercises for dayId:', dayId);
     try {

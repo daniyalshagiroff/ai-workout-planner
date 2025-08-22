@@ -21,10 +21,51 @@
         </header>
         <main class="workout-plan-content">
             <div id="weeksGrid" class="weeks-grid">
-                <!-- Weeks will be rendered here by JavaScript -->
+                <div class="week-content" onclick="window.location.href='/static/week-days.html?week=1'" style="cursor: pointer;">
+                    <h3 class="week-title">WEEK 1</h3>
+                    <div class="week-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="week-content" onclick="window.location.href='/static/week-days.html?week=2'" style="cursor: pointer;">
+                    <h3 class="week-title">WEEK 2</h3>
+                    <div class="week-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="week-content" onclick="window.location.href='/static/week-days.html?week=3'" style="cursor: pointer;">
+                    <h3 class="week-title">WEEK 3</h3>
+                    <div class="week-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="week-content" onclick="window.location.href='/static/week-days.html?week=4'" style="cursor: pointer;">
+                    <h3 class="week-title">WEEK 4</h3>
+                    <div class="week-arrow">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
-    <script src="/static/workout-plan.js"></script>
+    <script>
+        function goBack() {
+            // Check if we came from program-foundational or index
+            const referrer = document.referrer;
+            if (referrer.includes('program-foundational')) {
+                window.location.href = '/static/program-foundational.html';
+            } else {
+                window.location.href = '/static/index.html';
+            }
+        }
+    </script>
 </body>
 </html>

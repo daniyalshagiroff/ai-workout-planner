@@ -439,6 +439,12 @@ body {
     transform: translateY(-2px);
 }
 
+.button-container {
+    display: flex;
+    flex-direction: column; 
+    gap: 10px; 
+  }
+
 /* Program actions */
 .program-actions {
     display: flex;

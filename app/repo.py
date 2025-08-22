@@ -257,16 +257,20 @@ def create_cycle(program_id: int, cycle_no: int, started_at: str) -> ProgramCycl
 
 
 def create_week(cycle_id: int, week_no: int) -> Week:
-    """Create a new week."""
+    """Create a new week in a cycle."""
     with db.get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO weeks(cycle_id, week_no) VALUES(?, ?)",
+            "INSERT INTO weeks (cycle_id, week_no) VALUES (?, ?)",
             (cycle_id, week_no)
         )
         week_id = cur.lastrowid
         conn.commit()
-        return Week(id=week_id, cycle_id=cycle_id, week_no=week_no)
+        return Week(
+            id=week_id,
+            cycle_id=cycle_id,
+            week_no=week_no
+        )
 
 
 def create_training_day(week_id: int, name: Optional[str], emphasis: Optional[str], day_order: int) -> TrainingDay:

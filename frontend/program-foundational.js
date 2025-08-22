@@ -12,28 +12,30 @@ async function fetchProgramData() {
 function capital(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 function render(data) {
-    const grid = document.getElementById('daysGrid');
-    grid.innerHTML = '';
-    data.days.forEach((day, idx) => {
-        const card = document.createElement('div');
-        card.className = 'day-card';
-        card.innerHTML = `
-            <div class="day-title">
-                <h3>Day ${idx + 1}</h3>
-                <span class="emphasis-badge">${(day.emphasis || '').toUpperCase()}</span>
-            </div>
-            <ul class="exercise-list">
-                ${day.exercises.map((ex) => `
-                    <li class="exercise-item">
-                        <span class="exercise-name">${ex}</span>
-                        <span class="exercise-meta">2 sets · RPE ~7–8</span>
-                    </li>
-                `).join('')}
+    const daysGrid = document.getElementById('daysGrid');
+    daysGrid.innerHTML = '';
+    
+    data.days.forEach(day => {
+        const dayCard = document.createElement('div');
+        dayCard.className = 'day-card';
+        
+        dayCard.innerHTML = `
+            <h3 class="day-title">${day.label}</h3>
+            <div class="day-emphasis">${day.emphasis}</div>
+            <ul class="exercises-list">
+                ${day.exercises.map(exercise => `<li class="exercise-item">${exercise}</li>`).join('')}
             </ul>
         `;
-        grid.appendChild(card);
+        
+        daysGrid.appendChild(dayCard);
     });
 }
+
+
+function startProgram() {
+    window.location.href = '/static/workout-plan.html';
+}
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     const data = await fetchProgramData();

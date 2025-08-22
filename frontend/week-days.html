@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IRON AI - Week Days</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+    <div class="week-days-page">
+        <header class="week-days-header">
+            <button class="back-button" onclick="window.location.href='/static/workout-plan.html'">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <h1 class="page-title" id="weekTitle">WEEK 1</h1>
+        </header>
+        <main class="week-days-content">
+            <div id="daysGrid" class="days-grid">
+                <!-- Training days will be rendered here by JavaScript -->
+            </div>
+        </main>
+    </div>
+    <script src="/static/week-days.js"></script>
+</body>
+</html>

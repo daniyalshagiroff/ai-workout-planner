@@ -80,6 +80,16 @@ class SetAlreadyExistsError(Exception):
     pass
 
 
+class NoCycleError(Exception):
+    """Raised when no cycle exists for a program."""
+    pass
+
+
+class NoWeekError(Exception):
+    """Raised when no week exists for a cycle."""
+    pass
+
+
 async def export_program_json(program_name: str) -> schemas.ProgramExport:
     """
     Export a program's latest cycle data as structured JSON.

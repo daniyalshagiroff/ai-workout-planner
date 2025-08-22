@@ -1,80 +1,93 @@
+// Helper function to get default weight for exercise
+function getDefaultWeight(exerciseName) {
+    const weights = {
+        'barbell squat': 80.0,
+        'bench press': 60.0,
+        'pulldown': 40.0,
+        'biceps curls': 12.5,
+        'triceps pushdown': 25.0
+    };
+    return weights[exerciseName.toLowerCase()] || 50.0;
+}
+
+// Helper function to get fallback exercises
+function getFallbackExercises() {
+    return [
+        {
+            id: 1,
+            exercise: { name: 'Barbell Squat', equipment: 'barbell', target_muscle: 'quads' },
+            ex_order: 1,
+            sets: [
+                { id: 1, set_order: 1, target_weight: 80.0 },
+                { id: 2, set_order: 2, target_weight: 80.0 }
+            ]
+        },
+        {
+            id: 2,
+            exercise: { name: 'Bench Press', equipment: 'barbell', target_muscle: 'chest' },
+            ex_order: 2,
+            sets: [
+                { id: 3, set_order: 1, target_weight: 60.0 },
+                { id: 4, set_order: 2, target_weight: 60.0 }
+            ]
+        },
+        {
+            id: 3,
+            exercise: { name: 'Pulldown', equipment: 'cable', target_muscle: 'lats' },
+            ex_order: 3,
+            sets: [
+                { id: 5, set_order: 1, target_weight: 40.0 },
+                { id: 6, set_order: 2, target_weight: 40.0 }
+            ]
+        }
+    ];
+}
+
 async function fetchDayExercises(dayId) {
+    console.log('Fetching exercises for dayId:', dayId);
     try {
-        const response = await fetch(`/api/day-exercises?training_day_id=${dayId}`, { 
+        const url = `/api/day-exercises?training_day_id=${dayId}`;
+        console.log('Making API request to:', url);
+        
+        const response = await fetch(url, { 
             cache: 'no-store',
             headers: { 'Accept': 'application/json' }
         });
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         
-        const exercises = await response.json();
+        console.log('API response status:', response.status);
+        console.log('API response ok:', response.ok);
         
-        // Check if exercises have sets, if not use fallback data
-        if (exercises.length === 0 || !exercises[0].sets) {
-            console.warn('API returned exercises without sets, using fallback data');
-            return [
-                {
-                    id: 1,
-                    exercise: { name: 'Barbell Squat', equipment: 'barbell', target_muscle: 'quads' },
-                    ex_order: 1,
-                    sets: [
-                        { id: 1, set_order: 1, target_weight: 80.0 },
-                        { id: 2, set_order: 2, target_weight: 80.0 }
-                    ]
-                },
-                {
-                    id: 2,
-                    exercise: { name: 'Bench Press', equipment: 'barbell', target_muscle: 'chest' },
-                    ex_order: 2,
-                    sets: [
-                        { id: 3, set_order: 1, target_weight: 60.0 },
-                        { id: 4, set_order: 2, target_weight: 60.0 }
-                    ]
-                },
-                {
-                    id: 3,
-                    exercise: { name: 'Pulldown', equipment: 'cable', target_muscle: 'lats' },
-                    ex_order: 3,
-                    sets: [
-                        { id: 5, set_order: 1, target_weight: 40.0 },
-                        { id: 6, set_order: 2, target_weight: 40.0 }
-                    ]
-                }
-            ];
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API error response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
         
-        return exercises;
+        const exercises = await response.json();
+        console.log('API returned exercises:', exercises);
+        
+        // Check if exercises have sets, if not use fallback data
+        if (exercises.length === 0) {
+            console.warn('API returned no exercises, using fallback data');
+            return getFallbackExercises();
+        }
+        
+        // API returns exercises without sets, so we need to add sets
+        console.log('API returned exercises without sets, adding sets to each exercise');
+        const exercisesWithSets = exercises.map((exercise, index) => ({
+            ...exercise,
+            sets: [
+                { id: index * 2 + 1, set_order: 1, target_weight: getDefaultWeight(exercise.exercise.name) },
+                { id: index * 2 + 2, set_order: 2, target_weight: getDefaultWeight(exercise.exercise.name) }
+            ]
+        }));
+        
+        return exercisesWithSets;
     } catch (error) {
         console.error('Error fetching day exercises:', error);
+        console.error('Error details:', error.message);
         // Return default exercises if API fails
-        return [
-            {
-                id: 1,
-                exercise: { name: 'Barbell Squat', equipment: 'barbell', target_muscle: 'quads' },
-                ex_order: 1,
-                sets: [
-                    { id: 1, set_order: 1, target_weight: 80.0 },
-                    { id: 2, set_order: 2, target_weight: 80.0 }
-                ]
-            },
-            {
-                id: 2,
-                exercise: { name: 'Bench Press', equipment: 'barbell', target_muscle: 'chest' },
-                ex_order: 2,
-                sets: [
-                    { id: 3, set_order: 1, target_weight: 60.0 },
-                    { id: 4, set_order: 2, target_weight: 60.0 }
-                ]
-            },
-            {
-                id: 3,
-                exercise: { name: 'Pulldown', equipment: 'cable', target_muscle: 'lats' },
-                ex_order: 3,
-                sets: [
-                    { id: 5, set_order: 1, target_weight: 40.0 },
-                    { id: 6, set_order: 2, target_weight: 40.0 }
-                ]
-            }
-        ];
+        return getFallbackExercises();
     }
 }
 

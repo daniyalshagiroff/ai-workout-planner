@@ -165,7 +165,8 @@ async def list_day_exercises(training_day_id: int = Query(..., description="Trai
         raise HTTPException(status_code=404, detail=str(e))
 
 
-# === SETS ===
+
+# === SETS === testing
 @app.post("/api/sets", response_model=schemas.SetInfo)
 async def create_set(request: schemas.CreateSetRequest):
     """Create a new set for a day exercise."""

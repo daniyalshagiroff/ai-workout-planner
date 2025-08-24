@@ -1,7 +1,7 @@
 async function fetchDayExercises(dayId) {
     console.log('Fetching exercises for dayId:', dayId);
     try {
-        const url = `/api/day-exercises?training_day_id=${dayId}`;
+        const url = `http://localhost:8000/api/day-exercises?training_day_id=${dayId}`;
         console.log('Making API request to:', url);
         
         const response = await fetch(url, { 
@@ -32,7 +32,7 @@ async function fetchDayExercises(dayId) {
         const exercisesWithSets = await Promise.all(exercises.map(async (exercise, index) => {
             // Fetch existing sets for this exercise
             try {
-                const setsResponse = await fetch(`/api/sets?day_exercise_id=${exercise.id}`);
+                const setsResponse = await fetch(`http://localhost:8000/api/sets?day_exercise_id=${exercise.id}`);
                 if (setsResponse.ok) {
                     const existingSets = await setsResponse.json();
                     console.log(`Found ${existingSets.length} existing sets for exercise ${exercise.id}`);
@@ -213,7 +213,7 @@ async function completeSet(setId, button) {
     }
 
     try {
-        const response = await fetch(`/api/sets`, {
+        const response = await fetch(`http://localhost:8000/api/sets`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

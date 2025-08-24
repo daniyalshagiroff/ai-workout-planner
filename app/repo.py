@@ -328,9 +328,8 @@ def add_exercise_to_day(training_day_id: int, exercise_id: int, ex_order: int) -
         )
 
 
-def create_set(day_exercise_id: int, set_order: int, target_weight: Optional[float] = None,
-               notes: Optional[str] = None, rpe: Optional[float] = None,
-               rep: Optional[int] = None, weight: Optional[float] = None) -> Set:
+def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, target_weight: Optional[float] = None,
+               notes: Optional[str] = None, rpe: Optional[float] = None) -> Set:
     """Create a new set."""
     with db.get_db_connection() as conn:
         cur = conn.cursor()

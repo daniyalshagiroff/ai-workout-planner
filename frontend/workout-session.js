@@ -1,15 +1,3 @@
-// Helper function to get default weight for exercise
-function getDefaultWeight(exerciseName) {
-    const weights = {
-        'barbell squat': 80.0,
-        'bench press': 60.0,
-        'pulldown': 40.0,
-        'biceps curls': 12.5,
-        'triceps pushdown': 25.0
-    };
-    return weights[exerciseName.toLowerCase()] || 50.0;
-}
-
 async function fetchDayExercises(dayId) {
     console.log('Fetching exercises for dayId:', dayId);
     try {
@@ -44,8 +32,8 @@ async function fetchDayExercises(dayId) {
         const exercisesWithSets = exercises.map((exercise, index) => ({
             ...exercise,
             sets: [
-                { id: index * 2 + 1, set_order: 1, target_weight: getDefaultWeight(exercise.exercise.name) },
-                { id: index * 2 + 2, set_order: 2, target_weight: getDefaultWeight(exercise.exercise.name) }
+                { id: exercise.id, set_order: 1, target_weight: 0 },
+                { id: exercise.id, set_order: 2, target_weight: 0 }
             ]
         }));
         
@@ -118,7 +106,7 @@ function toggleExercise(index) {
     }
 }
 
-function completeSet(setId, button) {
+async function completeSet(setId, button) {
     const setRow = button.closest('.set-row');
     const weightInput = setRow.querySelector('.weight-input');
     const repsInput = setRow.querySelector('.reps-input');
@@ -129,6 +117,29 @@ function completeSet(setId, button) {
     if (!weight || !reps) {
         alert('Please enter both weight and reps');
         return;
+    }
+
+    try {
+        const response = await fetch(`/api/sets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                day_exercise_id: parseInt(setId),
+                set_order: parseInt(setRow.querySelector('.set-number').textContent.split(' ')[1]),
+                rep: parseInt(reps),
+                weight: parseFloat(weight),
+                target_weight: null
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Error completing set:', error);
+        alert('Failed to complete set. Please try again.');
     }
     
     // Mark set as completed
@@ -144,7 +155,7 @@ function completeSet(setId, button) {
     weightInput.disabled = true;
     repsInput.disabled = true;
     
-    console.log(`Set ${setId} completed: ${weight}kg x ${reps} reps`);
+    console.log(`Set ${setId} completed: ${weight}kg x ${reps} reps!!!`);
 }
 
 function getUrlParams() {

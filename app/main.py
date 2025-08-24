@@ -173,6 +173,8 @@ async def create_set(request: schemas.CreateSetRequest):
         return await services.create_set(
             request.day_exercise_id,
             request.set_order,
+            request.rep,
+            request.weight,
             request.target_weight
         )
     except services.DayExerciseNotFoundError as e:

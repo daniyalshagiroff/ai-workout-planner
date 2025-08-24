@@ -152,31 +152,6 @@ def add_day_exercises(
     return day_exercise_ids
 
 
-def add_sets_for_day_exercises(
-    conn: sqlite3.Connection,
-    day_exercise_ids_with_weights: List[Tuple[int, float | None]],
-    sets_per_exercise: int = 2,
-) -> None:
-    for day_ex_id, target_weight in day_exercise_ids_with_weights:
-        for set_order in range(1, sets_per_exercise + 1):
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO sets(
-                    day_exercise_id, set_order, target_weight, notes, rpe, rep, weight
-                ) VALUES(?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    day_ex_id,
-                    set_order,
-                    target_weight,
-                    "",
-                    7.5,
-                    None,
-                    None,
-                ),
-            )
-
-
 def main() -> None:
     conn = connect(DB_PATH)
     try:
@@ -231,8 +206,6 @@ def main() -> None:
             exercise_order = exercise_orders[emphasis]
             
             day_ex_ids = add_day_exercises(conn, day_id, exercise_order)
-            day_ex_ids_with_weights = [(dx_id, default_weights_map.get(ex_id)) for dx_id, ex_id in zip(day_ex_ids, exercise_order)]
-            add_sets_for_day_exercises(conn, day_ex_ids_with_weights, sets_per_exercise=2)
 
         conn.commit()
         print("Seed completed successfully.")

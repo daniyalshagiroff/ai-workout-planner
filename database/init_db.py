@@ -62,6 +62,7 @@ def init_db(db_path: Path) -> None:
         CREATE TABLE weeks (
             id        INTEGER PRIMARY KEY,
             cycle_id  INTEGER NOT NULL REFERENCES program_cycles(id) ON DELETE CASCADE,
+            program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
             week_no   INTEGER NOT NULL,                   -- 1..N
             UNIQUE(cycle_id, week_no)                     -- Week 1 может повторяться в новом цикле
         );
@@ -103,6 +104,7 @@ def init_db(db_path: Path) -> None:
         CREATE TABLE sets (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             day_exercise_id INTEGER NOT NULL REFERENCES day_exercises(id) ON DELETE CASCADE,
+            week_id         INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
             set_order       INTEGER NOT NULL,
             target_weight   REAL, 
             notes           TEXT,

@@ -50,6 +50,7 @@ async function fetchDayExercises(dayId) {
                             sets[setIndex] = {
                                 ...sets[setIndex],
                                 id: existingSet.id,
+                                week_id: existingSet.week_id,
                                 rep: existingSet.rep,
                                 weight: existingSet.weight,
                                 completed: existingSet.rep !== null && existingSet.weight !== null
@@ -85,7 +86,7 @@ async function fetchDayExercises(dayId) {
     }
 }
 
-async function displayAddedSets(dayExerciseId, set_order) {
+async function displayAddedSets(dayExerciseId, set_order, weekId) {
     try {
         const response = await fetch(`/api/sets?day_exercise_id=${dayExerciseId}`);
         if (!response.ok) {
@@ -94,7 +95,7 @@ async function displayAddedSets(dayExerciseId, set_order) {
         const sets = await response.json();
         console.log('API returned sets:', sets);
         
-        const targetSet = sets.find(set => set.set_order === set_order);
+        const targetSet = sets.find(set => set.set_order === set_order && set.week_id === weekId);
         if (targetSet) {
             const setRow = document.querySelector(`.set-row[data-set-id="${targetSet.id}"]`);
             if (setRow) {
@@ -172,7 +173,7 @@ function renderExercises(exercises) {
                             <input type="number" class="weight-input" placeholder="Weight (kg)" min="0" step="0.5">
                             <input type="number" class="reps-input" placeholder="Reps" min="1" max="50">
                         </div>
-                        <button class="complete-set-btn" onclick="completeSet(${set.id}, this)">
+                        <button class="complete-set-btn" onclick="completeSet(${dayExercise.id}, this)">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                                 <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
@@ -199,7 +200,7 @@ function toggleExercise(index) {
     }
 }
 
-async function completeSet(setId, button) {
+async function completeSet(dayExerciseId, button) {
     const setRow = button.closest('.set-row');
     const weightInput = setRow.querySelector('.weight-input');
     const repsInput = setRow.querySelector('.reps-input');
@@ -219,7 +220,7 @@ async function completeSet(setId, button) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                day_exercise_id: parseInt(setId),
+                day_exercise_id: parseInt(dayExerciseId),
                 set_order: parseInt(setRow.querySelector('.set-number').textContent.split(' ')[1]),
                 rep: parseInt(reps),
                 weight: parseFloat(weight),
@@ -232,6 +233,8 @@ async function completeSet(setId, button) {
         }
     } catch (error) {
         console.error('Error completing set:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
         alert('Failed to complete set. Please try again.');
     }
     
@@ -248,7 +251,7 @@ async function completeSet(setId, button) {
     weightInput.disabled = true;
     repsInput.disabled = true;
     
-    console.log(`Set ${setId} completed: ${weight}kg x ${reps} reps!!!`);
+    console.log(`Set completed: ${weight}kg x ${reps} reps!!!`);
 }
 
 function getUrlParams() {
@@ -274,7 +277,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load existing set data for each exercise
     for (const exercise of exercises) {
         for (const set of exercise.sets) {
-            await displayAddedSets(exercise.id, set.set_order);
+            // Получаем week_id из URL или используем 1 как значение по умолчанию
+            const weekId = parseInt(params.week) || 1;
+            await displayAddedSets(exercise.id, set.set_order, weekId);
         }
     }
 });

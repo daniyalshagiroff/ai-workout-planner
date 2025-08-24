@@ -29,6 +29,7 @@ class ProgramCycle:
 class Week:
     id: int
     cycle_id: int
+    program_id: int
     week_no: int
 
 
@@ -62,6 +63,7 @@ class DayExercise:
 class Set:
     id: int
     day_exercise_id: int
+    week_id: int
     set_order: int
     target_weight: Optional[float]
     notes: Optional[str]
@@ -118,7 +120,7 @@ def get_week_by_number(cycle_id: int, week_no: int) -> Optional[Week]:
     with db.get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, cycle_id, week_no FROM weeks WHERE cycle_id = ? AND week_no = ?",
+            "SELECT id, cycle_id, program_id, week_no FROM weeks WHERE cycle_id = ? AND week_no = ?",
             (cycle_id, week_no)
         )
         row = cur.fetchone()
@@ -127,6 +129,7 @@ def get_week_by_number(cycle_id: int, week_no: int) -> Optional[Week]:
         return Week(
             id=row["id"],
             cycle_id=row["cycle_id"],
+            program_id=row["program_id"],
             week_no=row["week_no"]
         )
 
@@ -188,7 +191,7 @@ def get_sets_for_day_exercise(day_exercise_id: int) -> List[Set]:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT id, day_exercise_id, set_order, target_weight, notes, rpe, rep, weight
+            SELECT id, day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight
             FROM sets
             WHERE day_exercise_id = ?
             ORDER BY set_order ASC
@@ -199,6 +202,7 @@ def get_sets_for_day_exercise(day_exercise_id: int) -> List[Set]:
             Set(
                 id=row["id"],
                 day_exercise_id=row["day_exercise_id"],
+                week_id=row["week_id"],
                 set_order=row["set_order"],
                 target_weight=row["target_weight"],
                 notes=row["notes"],
@@ -260,15 +264,23 @@ def create_week(cycle_id: int, week_no: int) -> Week:
     """Create a new week in a cycle."""
     with db.get_db_connection() as conn:
         cur = conn.cursor()
+        # Получаем program_id из cycle
+        cur.execute("SELECT program_id FROM program_cycles WHERE id = ?", (cycle_id,))
+        cycle_row = cur.fetchone()
+        if not cycle_row:
+            raise ValueError(f"Cycle with ID {cycle_id} not found")
+        program_id = cycle_row["program_id"]
+        
         cur.execute(
-            "INSERT INTO weeks (cycle_id, week_no) VALUES (?, ?)",
-            (cycle_id, week_no)
+            "INSERT INTO weeks (cycle_id, program_id, week_no) VALUES (?, ?, ?)",
+            (cycle_id, program_id, week_no)
         )
         week_id = cur.lastrowid
         conn.commit()
         return Week(
             id=week_id,
             cycle_id=cycle_id,
+            program_id=program_id,
             week_no=week_no
         )
 
@@ -333,24 +345,73 @@ def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, targ
     """Create a new set."""
     with db.get_db_connection() as conn:
         cur = conn.cursor()
+        # Получаем week_id из day_exercise через training_day
+        cur.execute("""
+            SELECT td.week_id 
+            FROM day_exercises de 
+            JOIN training_days td ON de.training_day_id = td.id 
+            WHERE de.id = ?
+        """, (day_exercise_id,))
+        week_row = cur.fetchone()
+        if not week_row:
+            raise ValueError(f"Day exercise with ID {day_exercise_id} not found")
+        week_id = week_row["week_id"]
+        
         cur.execute(
             """
-            INSERT INTO sets(day_exercise_id, set_order, target_weight, notes, rpe, rep, weight)
-            VALUES(?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sets(day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (day_exercise_id, set_order, target_weight, notes, rpe, rep, weight)
+            (day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight)
         )
         set_id = cur.lastrowid
         conn.commit()
         return Set(
             id=set_id,
             day_exercise_id=day_exercise_id,
+            week_id=week_id,
             set_order=set_order,
             target_weight=target_weight,
             notes=notes,
             rpe=rpe,
             rep=rep,
             weight=weight
+        )
+
+
+def update_set(set_id: int, rep: int, weight: int, target_weight: Optional[float] = None) -> Set:
+    """Update an existing set with rep, weight, and target_weight."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE sets 
+            SET rep = ?, weight = ?, target_weight = ?
+            WHERE id = ?
+            """,
+            (rep, weight, target_weight, set_id)
+        )
+        conn.commit()
+        
+        # Get the updated set
+        cur.execute(
+            "SELECT * FROM sets WHERE id = ?",
+            (set_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError(f"Set with ID {set_id} not found")
+        
+        return Set(
+            id=row["id"],
+            day_exercise_id=row["day_exercise_id"],
+            week_id=row["week_id"],
+            set_order=row["set_order"],
+            target_weight=row["target_weight"],
+            notes=row["notes"],
+            rpe=row["rpe"],
+            rep=row["rep"],
+            weight=row["weight"]
         )
 
 
@@ -449,13 +510,14 @@ def list_weeks_by_cycle(cycle_id: int) -> List[Week]:
     with db.get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, cycle_id, week_no FROM weeks WHERE cycle_id = ? ORDER BY week_no",
+            "SELECT id, cycle_id, program_id, week_no FROM weeks WHERE cycle_id = ? ORDER BY week_no",
             (cycle_id,)
         )
         return [
             Week(
                 id=row["id"],
                 cycle_id=row["cycle_id"],
+                program_id=row["program_id"],
                 week_no=row["week_no"]
             )
             for row in cur.fetchall()
@@ -583,13 +645,14 @@ def list_sets_by_day_exercise(day_exercise_id: int) -> List[Set]:
     with db.get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, day_exercise_id, set_order, target_weight, notes, rpe, rep, weight FROM sets WHERE day_exercise_id = ? ORDER BY set_order",
+            "SELECT id, day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight FROM sets WHERE day_exercise_id = ? ORDER BY set_order",
             (day_exercise_id,)
         )
         return [
             Set(
                 id=row["id"],
                 day_exercise_id=row["day_exercise_id"],
+                week_id=row["week_id"],
                 set_order=row["set_order"],
                 target_weight=row["target_weight"],
                 notes=row["notes"],

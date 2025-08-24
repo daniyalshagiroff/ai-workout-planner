@@ -72,6 +72,7 @@ class SetInfo(BaseModel):
     """Set information."""
     id: int = Field(..., description="Set ID")
     day_exercise_id: int = Field(..., description="Day exercise ID")
+    week_id: int = Field(..., description="Week ID")
     set_order: int = Field(..., description="Set order within exercise")
     target_weight: Optional[float] = Field(None, description="Target weight")
     notes: Optional[str] = Field(None, description="Set notes")

@@ -421,7 +421,7 @@ async def list_day_exercises(training_day_id: int) -> List[schemas.DayExerciseIn
     return result
 
 
-async def create_set(day_exercise_id: int, set_order: int, target_weight: Optional[float] = None) -> schemas.SetInfo:
+async def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, target_weight: Optional[float] = None) -> schemas.SetInfo:
     """Create a new set for a day exercise."""
     # Check if day exercise exists
     day_exercise = repo.get_day_exercise_by_id(day_exercise_id)
@@ -433,7 +433,7 @@ async def create_set(day_exercise_id: int, set_order: int, target_weight: Option
     if any(s.set_order == set_order for s in existing_sets):
         raise SetAlreadyExistsError(f"Set {set_order} already exists for day exercise {day_exercise_id}")
     
-    set_obj = repo.create_set(day_exercise_id, set_order, target_weight)
+    set_obj = repo.create_set(day_exercise_id, set_order, rep, weight, target_weight)
     return schemas.SetInfo(
         id=set_obj.id,
         set_order=set_obj.set_order,

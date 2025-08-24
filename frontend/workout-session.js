@@ -27,14 +27,53 @@ async function fetchDayExercises(dayId) {
             return getFallbackExercises();
         }
         
-        // API returns exercises without sets, so we need to add sets
+        // API returns exercises without sets, so we need to add sets and fetch existing data
         console.log('API returned exercises without sets, adding sets to each exercise');
-        const exercisesWithSets = exercises.map((exercise, index) => ({
-            ...exercise,
-            sets: [
-                { id: exercise.id, set_order: 1, target_weight: 0 },
-                { id: exercise.id, set_order: 2, target_weight: 0 }
-            ]
+        const exercisesWithSets = await Promise.all(exercises.map(async (exercise, index) => {
+            // Fetch existing sets for this exercise
+            try {
+                const setsResponse = await fetch(`/api/sets?day_exercise_id=${exercise.id}`);
+                if (setsResponse.ok) {
+                    const existingSets = await setsResponse.json();
+                    console.log(`Found ${existingSets.length} existing sets for exercise ${exercise.id}`);
+                    
+                    // Create sets array with existing data or defaults
+                    const sets = [
+                        { id: exercise.id, set_order: 1, target_weight: 0, completed: false, rep: null, weight: null },
+                        { id: exercise.id, set_order: 2, target_weight: 0, completed: false, rep: null, weight: null }
+                    ];
+                    
+                    // Update with existing data
+                    existingSets.forEach(existingSet => {
+                        const setIndex = existingSet.set_order - 1;
+                        if (setIndex < sets.length) {
+                            sets[setIndex] = {
+                                ...sets[setIndex],
+                                id: existingSet.id,
+                                rep: existingSet.rep,
+                                weight: existingSet.weight,
+                                completed: existingSet.rep !== null && existingSet.weight !== null
+                            };
+                        }
+                    });
+                    
+                    return {
+                        ...exercise,
+                        sets: sets
+                    };
+                }
+            } catch (error) {
+                console.error(`Error fetching sets for exercise ${exercise.id}:`, error);
+            }
+            
+            // Fallback to default sets
+            return {
+                ...exercise,
+                sets: [
+                    { id: exercise.id, set_order: 1, target_weight: 0, completed: false, rep: null, weight: null },
+                    { id: exercise.id, set_order: 2, target_weight: 0, completed: false, rep: null, weight: null }
+                ]
+            };
         }));
         
         return exercisesWithSets;
@@ -43,6 +82,60 @@ async function fetchDayExercises(dayId) {
         console.error('Error details:', error.message);
         // Return default exercises if API fails
         return getFallbackExercises();
+    }
+}
+
+async function displayAddedSets(dayExerciseId, set_order) {
+    try {
+        const response = await fetch(`/api/sets?day_exercise_id=${dayExerciseId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const sets = await response.json();
+        console.log('API returned sets:', sets);
+        
+        const targetSet = sets.find(set => set.set_order === set_order);
+        if (targetSet) {
+            const setRow = document.querySelector(`.set-row[data-set-id="${targetSet.id}"]`);
+            if (setRow) {
+                const weightInput = setRow.querySelector('.weight-input');
+                const repsInput = setRow.querySelector('.reps-input');
+                const completeBtn = setRow.querySelector('.complete-set-btn');
+                
+                // Заполняем данные
+                weightInput.value = targetSet.weight;
+                repsInput.value = targetSet.rep;
+                
+                // Проверяем, завершен ли сет (есть ли данные)
+                if (targetSet.rep !== null && targetSet.weight !== null) {
+                    // Применяем стили завершенного сета
+                    setRow.classList.add('completed');
+                    completeBtn.classList.add('completed');
+                    
+                    // Заполняем галочку
+                    completeBtn.innerHTML = `
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 6L9 17L4 12"/>
+                        </svg>
+                    `;
+                    
+                    // Отключаем поля ввода
+                    weightInput.disabled = true;
+                    repsInput.disabled = true;
+                    
+                    console.log('Set data loaded and marked as completed:', targetSet);
+                } else {
+                    console.log('Set data loaded (not completed):', targetSet);
+                }
+            } else {
+                console.log('Set row not found in DOM');
+            }
+        } else {
+            console.log('Set not found in API response');
+        }
+    } catch (error) {
+        console.error('Error displaying added sets:', error);
+        alert('Failed to display added sets. Please try again.');
     }
 }
 
@@ -177,4 +270,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fetch exercises for the day
     const exercises = await fetchDayExercises(params.dayId || 1);
     renderExercises(exercises);
+    
+    // Load existing set data for each exercise
+    for (const exercise of exercises) {
+        for (const set of exercise.sets) {
+            await displayAddedSets(exercise.id, set.set_order);
+        }
+    }
 });

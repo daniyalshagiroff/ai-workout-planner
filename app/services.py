@@ -456,6 +456,7 @@ async def list_sets(day_exercise_id: int) -> List[schemas.SetInfo]:
     return [
         schemas.SetInfo(
             id=set_obj.id,
+            day_exercise_id=set_obj.day_exercise_id,
             set_order=set_obj.set_order,
             target_weight=set_obj.target_weight,
             notes=set_obj.notes,

@@ -11,11 +11,20 @@ from typing import List, Optional
 from . import services
 from . import schemas
 
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="IRON AI Workout Planner",
     description="AI-powered workout planning and tracking",
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080"],  # Разрешить запросы с порта 8080
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Serve static files (frontend)

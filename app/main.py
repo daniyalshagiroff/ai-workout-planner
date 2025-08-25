@@ -73,50 +73,31 @@ async def list_cycles(program_id: int = Query(..., description="Program ID")):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-# === WEEKS ===
-@app.post("/api/weeks", response_model=schemas.WeekInfo)
-async def create_week(request: schemas.CreateWeekRequest):
-    """Create a new week in a cycle."""
-    try:
-        return await services.create_week(request.cycle_id, request.week_no)
-    except services.CycleNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.WeekAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/weeks", response_model=List[schemas.WeekInfo])
-async def list_weeks(cycle_id: int = Query(..., description="Cycle ID")):
-    """List all weeks in a cycle."""
-    try:
-        return await services.list_weeks(cycle_id)
-    except services.CycleNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
 # === TRAINING DAYS ===
 @app.post("/api/training-days", response_model=schemas.TrainingDayInfo)
 async def create_training_day(request: schemas.CreateTrainingDayRequest):
-    """Create a new training day in a week."""
+    """Create a new training day in a cycle."""
     try:
         return await services.create_training_day(
-            request.week_id, 
+            request.program_id,
+            request.cycle_id,
+            request.week_no,
             request.name, 
             request.emphasis, 
             request.day_order
         )
-    except services.WeekNotFoundError as e:
+    except services.CycleNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except services.TrainingDayAlreadyExistsError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/training-days", response_model=List[schemas.TrainingDayInfo])
-async def list_training_days(week_id: int = Query(..., description="Week ID")):
-    """List all training days in a week."""
+async def list_training_days(cycle_id: int = Query(..., description="Cycle ID")):
+    """List all training days in a cycle."""
     try:
-        return await services.list_training_days(week_id)
-    except services.WeekNotFoundError as e:
+        return await services.list_training_days(cycle_id)
+    except services.CycleNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -164,8 +145,7 @@ async def list_day_exercises(training_day_id: int = Query(..., description="Trai
         raise HTTPException(status_code=404, detail=str(e))
 
 
-
-# === SETS === testing
+# === SETS ===
 @app.post("/api/sets", response_model=schemas.SetInfo)
 async def create_set(request: schemas.CreateSetRequest):
     """Create a new set for a day exercise."""

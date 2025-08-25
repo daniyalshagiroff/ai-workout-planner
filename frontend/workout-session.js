@@ -216,6 +216,7 @@ async function completeSet(dayExerciseId, button) {
     // Получаем week_no из URL
     const params = getUrlParams();
     const weekNo = parseInt(params.week);
+    console.log('weekNo:', weekNo);
 
     try {
         const response = await fetch(`/api/sets`, {
@@ -226,7 +227,7 @@ async function completeSet(dayExerciseId, button) {
             body: JSON.stringify({
                 day_exercise_id: parseInt(dayExerciseId),
                 set_order: parseInt(setRow.querySelector('.set-number').textContent.split(' ')[1]),
-                week_no: weekNo,
+                week_no: 2,
                 rep: parseInt(reps),
                 weight: parseFloat(weight),
                 target_weight: null

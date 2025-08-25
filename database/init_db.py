@@ -1,11 +1,11 @@
 """
 Initialize SQLite database with comprehensive workout tracking schema:
-- programs: workout programs
-- training_days: days within programs
-- exercises: exercise catalog
-- day_exercises: exercises in each training day
-- sets: sets for each exercise
-- reps: individual reps within sets
+-programs: workout programs
+-training_days: days within programs
+-exercises: exercise catalog
+-day_exercises: exercises in each training day
+-sets: sets for each exercise
+-reps: individual reps within sets
 
 Run this file directly to (re)create the database schema.
 """
@@ -59,16 +59,6 @@ def init_db(db_path: Path) -> None:
         """)
 
         cur.execute("""
-        CREATE TABLE weeks (
-            id        INTEGER PRIMARY KEY,
-            cycle_id  INTEGER NOT NULL REFERENCES program_cycles(id) ON DELETE CASCADE,
-            program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-            week_no   INTEGER NOT NULL,                   -- 1..N
-            UNIQUE(cycle_id, week_no)                     -- Week 1 может повторяться в новом цикле
-        );
-        """)
-
-        cur.execute("""
         CREATE TABLE exercises (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT NOT NULL UNIQUE,
@@ -80,11 +70,13 @@ def init_db(db_path: Path) -> None:
         cur.execute("""
         CREATE TABLE training_days (
             id        INTEGER PRIMARY KEY,
-            week_id   INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+            program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+            cycle_id  INTEGER NOT NULL REFERENCES program_cycles(id) ON DELETE CASCADE,
+            week_no   INTEGER NOT NULL,                   -- 1..N
             name      TEXT,
             emphasis  TEXT,
             day_order INTEGER NOT NULL,
-            UNIQUE(week_id, day_order)
+            UNIQUE(program_id, cycle_id, week_no, day_order)
         );
         """)
 
@@ -104,24 +96,26 @@ def init_db(db_path: Path) -> None:
         CREATE TABLE sets (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             day_exercise_id INTEGER NOT NULL REFERENCES day_exercises(id) ON DELETE CASCADE,
-            week_id         INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+            program_id      INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+            week_no         INTEGER NOT NULL,
             set_order       INTEGER NOT NULL,
             target_weight   REAL, 
             notes           TEXT,
             rpe             REAL, 
             rep             INTEGER,
             weight          REAL,
-            UNIQUE(day_exercise_id, set_order)
+            UNIQUE(day_exercise_id, set_order, week_no)
         );
         """)
 
         # ===== Индексы под частые запросы =====
         cur.executescript("""
         CREATE INDEX idx_cycles_program ON program_cycles(program_id);
-        CREATE INDEX idx_weeks_cycle    ON weeks(cycle_id);
-        CREATE INDEX idx_days_week      ON training_days(week_id);
-        CREATE INDEX idx_dayex_day      ON day_exercises(training_day_id);
-        CREATE INDEX idx_sets_dayex     ON sets(day_exercise_id);
+        CREATE INDEX idx_days_program_cycle ON training_days(program_id, cycle_id);
+        CREATE INDEX idx_days_week ON training_days(program_id, cycle_id, week_no);
+        CREATE INDEX idx_dayex_day ON day_exercises(training_day_id);
+        CREATE INDEX idx_sets_dayex ON sets(day_exercise_id);
+        CREATE INDEX idx_sets_program_week ON sets(program_id, week_no);
         """)
 
         conn.commit()

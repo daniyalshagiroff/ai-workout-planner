@@ -72,7 +72,7 @@ class SetInfo(BaseModel):
     """Set information."""
     id: int = Field(..., description="Set ID")
     day_exercise_id: int = Field(..., description="Day exercise ID")
-    week_id: int = Field(..., description="Week ID")
+    week_id: int = Field(..., description="Week number")
     set_order: int = Field(..., description="Set order within exercise")
     target_weight: Optional[float] = Field(None, description="Target weight")
     notes: Optional[str] = Field(None, description="Set notes")
@@ -170,6 +170,7 @@ class CreateSetRequest(BaseModel):
     """Request model for creating a new set."""
     day_exercise_id: int = Field(..., description="Day exercise ID")
     set_order: int = Field(..., description="Set order", ge=1)
+    week_no: int = Field(..., description="Week number", ge=1)
     target_weight: Optional[float] = Field(None, description="Target weight", ge=0)
     notes: Optional[str] = Field(None, description="Set notes", max_length=500)
     rpe: Optional[float] = Field(None, description="Rate of perceived exertion", ge=1, le=10)

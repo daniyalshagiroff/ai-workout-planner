@@ -421,27 +421,31 @@ async def list_day_exercises(training_day_id: int) -> List[schemas.DayExerciseIn
     return result
 
 
-async def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, target_weight: Optional[float] = None) -> schemas.SetInfo:
+async def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, week_no: int, target_weight: Optional[float] = None) -> schemas.SetInfo:
     """Create a new set for a day exercise."""
     # Check if day exercise exists
     day_exercise = repo.get_day_exercise_by_id(day_exercise_id)
     if not day_exercise:
         raise DayExerciseNotFoundError(f"Day exercise with ID {day_exercise_id} not found")
     
-    # Check if set already exists
+    # Check if set already exists for this specific week
     existing_sets = repo.list_sets_by_day_exercise(day_exercise_id)
-    existing_set = next((s for s in existing_sets if s.set_order == set_order), None)
+    existing_set = next((s for s in existing_sets if s.set_order == set_order and s.week_id == week_id), None)
     
     if existing_set:
-        # Update existing set
-        set_obj = repo.update_set(existing_set.id, rep, weight, target_weight)
-    else:
-        # Create new set
-        set_obj = repo.create_set(day_exercise_id, set_order, rep, weight, target_weight)
+        # Delete existing set and create new one
+        repo.delete_set(existing_set.id)
+    
+    # Create new set
+    set_obj = repo.create_set(day_exercise_id, set_order, rep, weight, week_no, target_weight)
+    
+    # Get week_id using the new function
+    week_id = repo.get_week_id_by_week_no(week_no, 1, 1)  # Assuming program_id=1, cycle_id=1
+    
     return schemas.SetInfo(
         id=set_obj.id,
         day_exercise_id=set_obj.day_exercise_id,
-        week_id=set_obj.week_id,
+        week_id=week_id,
         set_order=set_obj.set_order,
         target_weight=set_obj.target_weight,
         notes=set_obj.notes,

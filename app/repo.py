@@ -340,22 +340,21 @@ def add_exercise_to_day(training_day_id: int, exercise_id: int, ex_order: int) -
         )
 
 
-def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, target_weight: Optional[float] = None,
+def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, week_no: int, target_weight: Optional[float] = None,
                notes: Optional[str] = None, rpe: Optional[float] = None) -> Set:
     """Create a new set."""
     with db.get_db_connection() as conn:
         cur = conn.cursor()
-        # Получаем week_id из day_exercise через training_day
+        # Получаем week_id из таблицы weeks по week_no
         cur.execute("""
-            SELECT td.week_id 
-            FROM day_exercises de 
-            JOIN training_days td ON de.training_day_id = td.id 
-            WHERE de.id = ?
-        """, (day_exercise_id,))
+            SELECT id 
+            FROM weeks 
+            WHERE week_no = ?
+        """, (week_no,))
         week_row = cur.fetchone()
         if not week_row:
-            raise ValueError(f"Day exercise with ID {day_exercise_id} not found")
-        week_id = week_row["week_id"]
+            raise ValueError(f"Week with week_no {week_no} not found")
+        week_id = week_row["id"]
         
         cur.execute(
             """
@@ -662,3 +661,25 @@ def list_sets_by_day_exercise(day_exercise_id: int) -> List[Set]:
             )
             for row in cur.fetchall()
         ]
+
+
+def delete_set(set_id: int) -> None:
+    """Delete a set by ID."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM sets WHERE id = ?", (set_id,))
+        conn.commit()
+
+
+def get_week_id_by_week_no(week_no: int, program_id: int, cycle_id: int) -> Optional[int]:
+    """Get week_id by week_no, program_id, and cycle_id."""
+    with db.get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id FROM weeks WHERE week_no = ? AND program_id = ? AND cycle_id = ?",
+            (week_no, program_id, cycle_id)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return row["id"]

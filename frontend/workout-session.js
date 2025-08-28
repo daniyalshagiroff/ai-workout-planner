@@ -227,7 +227,7 @@ async function completeSet(dayExerciseId, button) {
             body: JSON.stringify({
                 day_exercise_id: parseInt(dayExerciseId),
                 set_order: parseInt(setRow.querySelector('.set-number').textContent.split(' ')[1]),
-                week_no: 2,
+                week_no: weekNo,
                 rep: parseInt(reps),
                 weight: parseFloat(weight),
                 target_weight: null

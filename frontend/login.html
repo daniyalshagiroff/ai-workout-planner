@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log In - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="form-page">
+    <div class="form-card">
+        <h2>Log In</h2>
+        <div class="form-field">
+            <label class="form-label" for="login-email">Email</label>
+            <input class="input" id="login-email" type="email" placeholder="you@example.com" />
+        </div>
+        <div class="form-field">
+            <label class="form-label" for="login-password">Password</label>
+            <input class="input" id="login-password" type="password" placeholder="••••••••" />
+        </div>
+        <button class="primary-button" id="login-submit">Log In</button>
+        <p class="muted-text"><a class="link" href="/">Back to home</a></p>
+    </div>
+    <script>
+    async function apiLogin(email, password) {
+      const params = new URLSearchParams({ email, password });
+      const res = await fetch('/api/v2/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString(), credentials: 'include' });
+      if (!res.ok) throw new Error((await res.json()).detail || 'Login failed');
+      return res.json();
+    }
+    document.getElementById('login-submit').addEventListener('click', async () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      try {
+        await apiLogin(email, password);
+        window.location.href = '/static/profile.html';
+      } catch (e) { alert(e.message); }
+    });
+    </script>
+</body>
+</html>
+
+

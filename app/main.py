@@ -1,205 +1,177 @@
 """
-FastAPI application with workout program routes.
+FastAPI application wired to Program ↔ Workout services and reports (v2 endpoints).
 """
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import Response, Request, Form
 import uvicorn
-from typing import List, Optional
+from typing import Optional
 
 from . import services
-from . import schemas
+from .repo import UserRepo
+from .security import hash_password, verify_password, sign_token, verify_token
 
 app = FastAPI(
     title="IRON AI Workout Planner",
     description="AI-powered workout planning and tracking",
-    version="1.0.0",
+    version="2.0.0",
 )
 
-# Serve static files (frontend)
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 
 @app.get("/")
 async def root():
-    """Serve the main landing page."""
     return FileResponse("frontend/index.html")
 
 
-# === PROGRAMS ===
-@app.post("/api/programs", response_model=schemas.ProgramSummary)
-async def create_program(request: schemas.CreateProgramRequest):
-    """Create a new program."""
+# Auth endpoints (cookie-based)
+COOKIE_NAME = "auth_token"
+COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+
+
+@app.post("/api/v2/auth/register")
+async def api_register(email: str = Form(...), password: str = Form(...)):
+    existing = UserRepo.get_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    pwd_hash = hash_password(password)
+    user_id = UserRepo.create(email, pwd_hash)
+    return {"id": user_id, "email": email}
+
+
+@app.post("/api/v2/auth/login")
+async def api_login(response: Response, email: str = Form(...), password: str = Form(...)):
+    user = UserRepo.get_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = sign_token(user["id"])  # type: ignore
+    response.set_cookie(COOKIE_NAME, token, max_age=COOKIE_MAX_AGE, httponly=True, samesite="lax")
+    return {"ok": True}
+
+
+@app.post("/api/v2/auth/logout")
+async def api_logout(response: Response):
+    response.delete_cookie(COOKIE_NAME)
+    return {"ok": True}
+
+
+@app.get("/api/v2/auth/me")
+async def api_me(request: Request):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        return {"authenticated": False}
+    user_id = verify_token(token)
+    if not user_id:
+        return {"authenticated": False}
+    user = UserRepo.get_by_id(user_id)
+    if not user:
+        return {"authenticated": False}
+    return {"authenticated": True, "user": {"id": user["id"], "email": user["email"]}}
+
+
+# v2 EXERCISES
+@app.post("/api/v2/exercises")
+async def api_create_exercise(name: str, muscle_group: str, equipment: Optional[str] = None, is_global: bool = False, owner_user_id: Optional[int] = None):
     try:
-        return await services.create_program(request.name, request.days_per_week)
-    except services.ProgramAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/programs/{program_id}", response_model=schemas.ProgramDetail)
-async def get_program(program_id: int):
-    """Get program by ID."""
-    try:
-        return await services.get_program_by_id(program_id)
-    except services.ProgramNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@app.get("/api/programs", response_model=List[schemas.ProgramSummary])
-async def list_programs():
-    """List all programs."""
-    return await services.list_programs()
-
-
-# === CYCLES ===
-@app.post("/api/cycles", response_model=schemas.CycleInfo)
-async def create_cycle(request: schemas.CreateCycleRequest):
-    """Create a new cycle for a program."""
-    try:
-        return await services.create_cycle(request.program_id, request.cycle_no)
-    except services.ProgramNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.CycleAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/cycles", response_model=List[schemas.CycleInfo])
-async def list_cycles(program_id: int = Query(..., description="Program ID")):
-    """List all cycles for a program."""
-    try:
-        return await services.list_cycles(program_id)
-    except services.ProgramNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-# === TRAINING DAYS ===
-@app.post("/api/training-days", response_model=schemas.TrainingDayInfo)
-async def create_training_day(request: schemas.CreateTrainingDayRequest):
-    """Create a new training day in a cycle."""
-    try:
-        return await services.create_training_day(
-            request.program_id,
-            request.cycle_id,
-            request.week_no,
-            request.name, 
-            request.emphasis, 
-            request.day_order
-        )
-    except services.CycleNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.TrainingDayAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/training-days", response_model=List[schemas.TrainingDayInfo])
-async def list_training_days(cycle_id: int = Query(..., description="Cycle ID")):
-    """List all training days in a cycle."""
-    try:
-        return await services.list_training_days(cycle_id)
-    except services.CycleNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-# === EXERCISES ===
-@app.post("/api/exercises", response_model=schemas.ExerciseInfo)
-async def create_exercise(request: schemas.CreateExerciseRequest):
-    """Create a new exercise in the catalog."""
-    try:
-        return await services.create_exercise(request.name, request.equipment, request.target_muscle)
-    except services.ExerciseAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/exercises", response_model=List[schemas.ExerciseInfo])
-async def list_exercises():
-    """List all exercises."""
-    return await services.list_exercises()
-
-
-# === DAY EXERCISES ===
-@app.post("/api/day-exercises", response_model=schemas.DayExerciseInfo)
-async def create_day_exercise(request: schemas.CreateDayExerciseRequest):
-    """Add an exercise to a training day."""
-    try:
-        return await services.create_day_exercise(
-            request.training_day_id,
-            request.exercise_id,
-            request.ex_order,
-            request.priority_weight
-        )
-    except services.TrainingDayNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.ExerciseNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.DayExerciseAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/day-exercises", response_model=List[schemas.DayExerciseInfo])
-async def list_day_exercises(training_day_id: int = Query(..., description="Training Day ID")):
-    """List all exercises for a training day."""
-    try:
-        return await services.list_day_exercises(training_day_id)
-    except services.TrainingDayNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-# === SETS ===
-@app.post("/api/sets", response_model=schemas.SetInfo)
-async def create_set(request: schemas.CreateSetRequest):
-    """Create a new set for a day exercise."""
-    try:
-        return await services.create_set(
-            request.day_exercise_id,
-            request.set_order,
-            request.rep,
-            request.weight,
-            request.week_no,
-            request.target_weight
-        )
-    except services.DayExerciseNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except services.SetAlreadyExistsError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/api/sets", response_model=List[schemas.SetInfo])
-async def list_sets(day_exercise_id: int = Query(..., description="Day Exercise ID")):
-    """List all sets for a day exercise."""
-    try:
-        return await services.list_sets(day_exercise_id)
-    except services.DayExerciseNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-# === LEGACY EXPORT ENDPOINT ===
-@app.get("/api/programs/{program_name}/export")
-async def export_program(program_name: str) -> schemas.ProgramExport:
-    """
-    Export a program's latest cycle data as JSON for frontend consumption.
-    
-    Args:
-        program_name: Name of the program (e.g., "Full Body")
-        
-    Returns:
-        ProgramExport: Structured program data with days and exercises
-        
-    Raises:
-        HTTPException: If program not found or no data available
-    """
-    try:
-        return await services.export_program_json(program_name)
-    except services.ProgramNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        return services.create_exercise(owner_user_id, name, muscle_group, equipment, is_global)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/v2/exercises")
+async def api_list_exercises(owner_user_id: Optional[int] = None):
+    return services.list_exercises(owner_user_id)
+
+
+# v2 PROGRAM BUILDING
+@app.post("/api/v2/programs")
+async def api_create_program(owner_user_id: int, title: str, description: Optional[str] = None):
+    try:
+        return services.create_program(owner_user_id, title, description)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/programs/{program_id}/weeks/{week_number}")
+async def api_ensure_week(program_id: int, week_number: int):
+    try:
+        return services.ensure_week(program_id, week_number)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_of_week}")
+async def api_ensure_day(program_id: int, week_number: int, day_of_week: int):
+    try:
+        return services.ensure_day(program_id, week_number, day_of_week)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_of_week}/exercises")
+async def api_add_day_exercise(program_id: int, week_number: int, day_of_week: int, exercise_id: int, position: int, notes: Optional[str] = None):
+    try:
+        return services.add_day_exercise(program_id, week_number, day_of_week, exercise_id, position, notes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_of_week}/exercises/{position}/planned-sets")
+async def api_add_planned_set(program_id: int, week_number: int, day_of_week: int, position: int, set_number: int, reps: int, weight: Optional[float] = None, rpe: Optional[float] = None, rest_seconds: Optional[int] = None):
+    try:
+        return services.add_planned_set(program_id, week_number, day_of_week, position, set_number, reps, weight, rpe, rest_seconds)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# v2 WORKOUTS
+@app.post("/api/v2/workouts/start")
+async def api_start_workout(owner_user_id: int, program_id: int, week_number: int, day_of_week: int):
+    try:
+        return services.start_workout(owner_user_id, program_id, week_number, day_of_week)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/workouts/{workout_id}/log-set")
+async def api_log_set(workout_id: int, position: int, planned_set_id: int, set_number: int, reps: int, weight: Optional[float] = None, rpe: Optional[float] = None, rest_seconds: Optional[int] = None):
+    try:
+        return services.log_workout_set(workout_id, position, planned_set_id, set_number, reps, weight, rpe, rest_seconds)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/workouts/{workout_id}/finish")
+async def api_finish_workout(workout_id: int, notes: Optional[str] = None):
+    try:
+        return services.finish_workout(workout_id, notes)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# v2 REPORTS
+@app.get("/api/v2/reports/planned-sets")
+async def api_report_planned_sets(program_id: int, week_number: int):
+    return services.report_total_planned_sets(program_id, week_number)
+
+
+@app.get("/api/v2/reports/actual-sets")
+async def api_report_actual_sets(program_id: int, week_number: int):
+    return services.report_total_actual_sets(program_id, week_number)
+
+
+@app.get("/api/v2/reports/sets-by-muscle-group")
+async def api_report_sets_by_muscle_group(program_id: int, week_number: int):
+    return services.report_sets_by_muscle_group(program_id, week_number)
+
+
+@app.get("/api/v2/reports/progress")
+async def api_report_progress(program_id: int, exercise_id: int):
+    return services.report_progress_for_exercise(program_id, exercise_id)
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-    )
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

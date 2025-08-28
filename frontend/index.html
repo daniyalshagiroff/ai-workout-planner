@@ -10,6 +10,15 @@
     <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+    <div class="top-nav">
+        <div class="brand" onclick="window.location.href='/'">IRON AI</div>
+        <div id="auth-bar" class="auth-bar">
+            <button id="btn-register" class="auth-link" style="display:none;">Register</button>
+            <button id="btn-login" class="auth-link" style="display:none;">Log In</button>
+            <button id="btn-profile" class="auth-link" style="display:none;">Profile</button>
+            <button id="btn-logout" class="auth-link" style="display:none;">Log Out</button>
+        </div>
+    </div>
     <div class="hero">
         <div class="hero-content">
             <h1 class="site-title">IRON AI</h1>
@@ -34,6 +43,28 @@
             </div>
         </div>
     </div>
+
+    <div id="modal-register" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Register</h3>
+            <input id="reg-email" type="email" placeholder="Email" />
+            <input id="reg-password" type="password" placeholder="Password" />
+            <button id="reg-submit">Create account</button>
+            <button class="modal-close">Close</button>
+        </div>
+    </div>
+
+    <div id="modal-login" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Log In</h3>
+            <input id="login-email" type="email" placeholder="Email" />
+            <input id="login-password" type="password" placeholder="Password" />
+            <button id="login-submit">Log In</button>
+            <button class="modal-close">Close</button>
+        </div>
+    </div>
+
+    <script src="/static/auth.js"></script>
 </body>
 </html>
 

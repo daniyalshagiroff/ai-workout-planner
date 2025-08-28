@@ -1,146 +1,127 @@
 """
-Business logic layer for workout program operations.
-Contains high-level business logic and orchestrates repository calls.
+Business logic for Program ↔ Workout schema, including invariant checks A/B/C and reports.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
+from .repo import UserRepo, ExerciseRepo, ProgramRepo, WorkoutRepo
+from . import schemas, repo
 
-from . import repo
-from . import schemas
 
-
-class ProgramNotFoundError(Exception):
-    """Raised when a program is not found."""
+class DomainError(Exception):
     pass
 
 
-class ProgramAlreadyExistsError(Exception):
-    """Raised when a program already exists."""
-    pass
+# Exercises
+def create_exercise(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
+    ex_id = ExerciseRepo.create(owner_user_id, name, muscle_group, equipment, 1 if is_global else 0)
+    ex = ExerciseRepo.get(ex_id)
+    return ex
 
 
-class CycleNotFoundError(Exception):
-    """Raised when a cycle is not found."""
-    pass
+def list_exercises(user_id: Optional[int]) -> List[Dict[str, Any]]:
+    return ExerciseRepo.list_for_user(user_id)
 
 
-class CycleAlreadyExistsError(Exception):
-    """Raised when a cycle already exists."""
-    pass
+# Program building
+def create_program(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
+    pid = ProgramRepo.create(owner_user_id, title, description)
+    return ProgramRepo.get(pid)
 
 
-class WeekNotFoundError(Exception):
-    """Raised when a week is not found."""
-    pass
+def ensure_week(program_id: int, week_number: int) -> Dict[str, Any]:
+    week = ProgramRepo.get_week(program_id, week_number)
+    if week:
+        return week
+    ProgramRepo.create_week(program_id, week_number)
+    return ProgramRepo.get_week(program_id, week_number)  # type: ignore
 
 
-class WeekAlreadyExistsError(Exception):
-    """Raised when a week already exists."""
-    pass
+def ensure_day(program_id: int, week_number: int, day_of_week: int) -> Dict[str, Any]:
+    week = ensure_week(program_id, week_number)
+    day = ProgramRepo.get_day(week["id"], day_of_week)
+    if day:
+        return day
+    ProgramRepo.create_day(week["id"], day_of_week)
+    return ProgramRepo.get_day(week["id"], day_of_week)  # type: ignore
 
 
-class TrainingDayNotFoundError(Exception):
-    """Raised when a training day is not found."""
-    pass
+def add_day_exercise(program_id: int, week_number: int, day_of_week: int, exercise_id: int, position: int, notes: Optional[str]) -> Dict[str, Any]:
+    day = ensure_day(program_id, week_number, day_of_week)
+    pde_id = ProgramRepo.add_day_exercise(day["id"], exercise_id, position, notes)
+    return {"id": pde_id, "program_day_id": day["id"], "exercise_id": exercise_id, "position": position, "notes": notes}
 
 
-class TrainingDayAlreadyExistsError(Exception):
-    """Raised when a training day already exists."""
-    pass
+def add_planned_set(program_id: int, week_number: int, day_of_week: int, position: int, set_number: int, reps: int, weight: Optional[float], rpe: Optional[float], rest_seconds: Optional[int]) -> Dict[str, Any]:
+    day = ensure_day(program_id, week_number, day_of_week)
+    pde = ProgramRepo.get_day_exercise(day["id"], position)
+    if not pde:
+        raise DomainError("program_day_exercise not found for given position")
+    ps_id = ProgramRepo.add_planned_set(pde["id"], set_number, reps, weight, rpe, rest_seconds)
+    return {"id": ps_id, "program_day_exercise_id": pde["id"], "set_number": set_number, "reps": reps, "weight": weight, "rpe": rpe, "rest_seconds": rest_seconds}
 
 
-class ExerciseNotFoundError(Exception):
-    """Raised when an exercise is not found."""
-    pass
+# Workouts
+def start_workout(owner_user_id: int, program_id: int, week_number: int, day_of_week: int) -> Dict[str, Any]:
+    day = ensure_day(program_id, week_number, day_of_week)
+    wid = WorkoutRepo.start(owner_user_id, day["id"], None)
+    return WorkoutRepo.get_workout(wid)  # type: ignore
 
 
-class ExerciseAlreadyExistsError(Exception):
-    """Raised when an exercise already exists."""
-    pass
+def _ensure_invariants_A_B_C(planned_set_id: int, workout_exercise_id: int, set_number: int) -> None:
+    ps = WorkoutRepo.get_planned_set(planned_set_id)
+    if not ps:
+        raise DomainError("planned_set not found")
+    wex = WorkoutRepo.get_workout_exercise(workout_exercise_id)
+    if not wex:
+        raise DomainError("workout_exercise not found")
+    if set_number != ps["set_number"]:
+        raise DomainError("Invariant A failed: set_number must equal planned_set.set_number")
+    if wex["program_day_exercise_id"] != ps["program_day_exercise_id"]:
+        raise DomainError("Invariant B failed: workout_exercise.program_day_exercise_id must equal planned_set.program_day_exercise_id")
+    actual = WorkoutRepo.count_actual_sets_for_wex(workout_exercise_id)
+    planned = WorkoutRepo.planned_count_for_pde(ps["program_day_exercise_id"])  # type: ignore
+    if actual + 1 > planned:
+        raise DomainError("Invariant C failed: actual workout sets cannot exceed planned sets")
 
 
-class DayExerciseNotFoundError(Exception):
-    """Raised when a day exercise is not found."""
-    pass
+def log_workout_set(workout_id: int, position: int, planned_set_id: int, set_number: int, reps: int, weight: Optional[float], rpe: Optional[float], rest_seconds: Optional[int]) -> Dict[str, Any]:
+    w = WorkoutRepo.get_workout(workout_id)
+    if not w:
+        raise DomainError("workout not found")
+    day_id = w["program_day_id"]
+    pdes = ProgramRepo.list_day_exercises(day_id)
+    target = next((d for d in pdes if d["position"] == position), None)
+    if not target:
+        raise DomainError("program_day_exercise (by position) not found")
+    wex_id = WorkoutRepo.ensure_workout_exercise(workout_id, target["id"], position)
+    _ensure_invariants_A_B_C(planned_set_id, wex_id, set_number)
+    ws_id = WorkoutRepo.add_workout_set(wex_id, planned_set_id, set_number, reps, weight, rpe, rest_seconds)
+    return {"id": ws_id, "workout_exercise_id": wex_id, "planned_set_id": planned_set_id, "set_number": set_number, "reps": reps, "weight": weight, "rpe": rpe, "rest_seconds": rest_seconds}
 
 
-class DayExerciseAlreadyExistsError(Exception):
-    """Raised when a day exercise already exists."""
-    pass
+def finish_workout(workout_id: int, notes: Optional[str]) -> Dict[str, Any]:
+    WorkoutRepo.finish(workout_id, None, notes)
+    return WorkoutRepo.get_workout(workout_id)  # type: ignore
 
 
-class SetNotFoundError(Exception):
-    """Raised when a set is not found."""
-    pass
+# Reports
+def report_total_planned_sets(program_id: int, week_number: int) -> Dict[str, int]:
+    return {"planned_sets": WorkoutRepo.report_planned_sets_for_week(program_id, week_number)}
 
 
-class SetAlreadyExistsError(Exception):
-    """Raised when a set already exists."""
-    pass
+def report_total_actual_sets(program_id: int, week_number: int) -> Dict[str, int]:
+    return {"actual_sets": WorkoutRepo.report_actual_sets_for_week(program_id, week_number)}
 
 
-class NoCycleError(Exception):
-    """Raised when no cycle exists for a program."""
-    pass
+def report_sets_by_muscle_group(program_id: int, week_number: int) -> List[Dict[str, Any]]:
+    rows = WorkoutRepo.report_sets_by_muscle_group(program_id, week_number)
+    return [{"muscle_group": mg, "sets": cnt} for mg, cnt in rows]
 
 
-class NoWeekError(Exception):
-    """Raised when no week exists for a cycle."""
-    pass
-
-
-async def export_program_json(program_name: str) -> schemas.ProgramExport:
-    """
-    Export a program's latest cycle data as structured JSON.
-    
-    Args:
-        program_name: Name of the program to export
-        
-    Returns:
-        ProgramExport: Structured program data with days and exercises
-        
-    Raises:
-        ProgramNotFoundError: If program doesn't exist
-        NoCycleError: If no cycle exists for the program
-        NoWeekError: If no week exists for the cycle
-    """
-    # Get program
-    program = repo.get_program_by_name(program_name)
-    if not program:
-        raise ProgramNotFoundError(f"Program '{program_name}' not found")
-    
-    # Get latest cycle
-    cycle = repo.get_latest_cycle(program.id)
-    if not cycle:
-        raise NoCycleError(f"No cycle found for program '{program_name}'")
-    
-    # Get training days for week 1
-    training_days = repo.get_training_days(program.id, cycle.id, week_no=1)
-    if not training_days:
-        raise NoWeekError(f"Week 1 not found for cycle {cycle.cycle_no}")
-    
-    # Build days output
-    days_output = []
-    for day in training_days:
-        # Get exercises for this day
-        day_exercises = repo.get_day_exercises(day.id)
-        exercises = [ex["exercise_name"] for ex in day_exercises]
-        
-        days_output.append(schemas.DayExport(
-            label=day.name or f"Day {day.day_order}",
-            emphasis=day.emphasis or "",
-            exercises=exercises
-        ))
-    
-    return schemas.ProgramExport(
-        program=schemas.ProgramInfo(
-            name=program.name,
-            days_per_week=program.days_per_week
-        ),
-        week=schemas.WeekInfo(week_no=1),
-        days=days_output
-    )
+def report_progress_for_exercise(program_id: int, exercise_id: int) -> List[Dict[str, Any]]:
+    rows = WorkoutRepo.report_progress_for_exercise(program_id, exercise_id)
+    return [{"week_number": w, "avg_weight": aw, "avg_reps": ar} for (w, aw, ar) in rows]
 
 
 async def list_programs() -> List[schemas.ProgramSummary]:

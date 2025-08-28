@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Profile - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="form-page">
+    <div class="form-card">
+        <h2>Your Profile</h2>
+        <div id="profile-info" class="form-field">Loading...</div>
+        <button class="primary-button" id="logout">Log Out</button>
+        <p class="muted-text"><a class="link" href="/">Back to home</a></p>
+    </div>
+    <script>
+    async function apiMe() {
+      const res = await fetch('/api/v2/auth/me', { credentials: 'include' });
+      return res.json();
+    }
+    async function apiLogout() {
+      await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'include' });
+    }
+    async function init() {
+      const info = document.getElementById('profile-info');
+      const me = await apiMe();
+      if (!me.authenticated) {
+        info.textContent = 'Not authenticated';
+        return;
+      }
+      info.textContent = `Email: ${me.user.email}`;
+    }
+    document.getElementById('logout').addEventListener('click', async () => { await apiLogout(); window.location.href = '/'; });
+    init();
+    </script>
+</body>
+</html>
+
+

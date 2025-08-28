@@ -12,14 +12,14 @@ class DomainError(Exception):
     pass
 
 
-# Exercises
-def create_exercise(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
+# Exercises (v2)
+def create_exercise_v2(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
     ex_id = ExerciseRepo.create(owner_user_id, name, muscle_group, equipment, 1 if is_global else 0)
     ex = ExerciseRepo.get(ex_id)
     return ex
 
 
-def list_exercises(user_id: Optional[int]) -> List[Dict[str, Any]]:
+def list_exercises_v2(user_id: Optional[int]) -> List[Dict[str, Any]]:
     return ExerciseRepo.list_for_user(user_id)
 
 

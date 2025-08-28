@@ -74,21 +74,38 @@ async def api_me(request: Request):
 
 # v2 EXERCISES
 @app.post("/api/v2/exercises")
-async def api_create_exercise(name: str, muscle_group: str, equipment: Optional[str] = None, is_global: bool = False, owner_user_id: Optional[int] = None):
+async def api_create_exercise(
+    name: str = Form(...),
+    muscle_group: str = Form(...),
+    equipment: Optional[str] = Form(None),
+    is_global: bool = Form(False),
+    owner_user_id: Optional[int] = Form(None),
+):
     try:
-        return services.create_exercise(owner_user_id, name, muscle_group, equipment, is_global)
+        # Normalize according to DB CHECK constraint:
+        # (is_global=1 AND owner_user_id IS NULL) OR (is_global=0 AND owner_user_id IS NOT NULL)
+        if is_global:
+            owner_user_id = None
+        else:
+            if owner_user_id is None:
+                raise HTTPException(status_code=400, detail="owner_user_id is required for user-scoped exercise")
+        return services.create_exercise_v2(owner_user_id, name, muscle_group, equipment, is_global)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/v2/exercises")
 async def api_list_exercises(owner_user_id: Optional[int] = None):
-    return services.list_exercises(owner_user_id)
+    return services.list_exercises_v2(owner_user_id)
 
 
 # v2 PROGRAM BUILDING
 @app.post("/api/v2/programs")
-async def api_create_program(owner_user_id: int, title: str, description: Optional[str] = None):
+async def api_create_program(
+    owner_user_id: int = Form(...),
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+):
     try:
         return services.create_program(owner_user_id, title, description)
     except Exception as e:
@@ -112,7 +129,14 @@ async def api_ensure_day(program_id: int, week_number: int, day_of_week: int):
 
 
 @app.post("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_of_week}/exercises")
-async def api_add_day_exercise(program_id: int, week_number: int, day_of_week: int, exercise_id: int, position: int, notes: Optional[str] = None):
+async def api_add_day_exercise(
+    program_id: int,
+    week_number: int,
+    day_of_week: int,
+    exercise_id: int = Form(...),
+    position: int = Form(...),
+    notes: Optional[str] = Form(None),
+):
     try:
         return services.add_day_exercise(program_id, week_number, day_of_week, exercise_id, position, notes)
     except Exception as e:
@@ -120,7 +144,17 @@ async def api_add_day_exercise(program_id: int, week_number: int, day_of_week: i
 
 
 @app.post("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_of_week}/exercises/{position}/planned-sets")
-async def api_add_planned_set(program_id: int, week_number: int, day_of_week: int, position: int, set_number: int, reps: int, weight: Optional[float] = None, rpe: Optional[float] = None, rest_seconds: Optional[int] = None):
+async def api_add_planned_set(
+    program_id: int,
+    week_number: int,
+    day_of_week: int,
+    position: int,
+    set_number: int = Form(...),
+    reps: int = Form(...),
+    weight: Optional[float] = Form(None),
+    rpe: Optional[float] = Form(None),
+    rest_seconds: Optional[int] = Form(None),
+):
     try:
         return services.add_planned_set(program_id, week_number, day_of_week, position, set_number, reps, weight, rpe, rest_seconds)
     except Exception as e:

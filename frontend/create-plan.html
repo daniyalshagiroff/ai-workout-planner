@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create Plan - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:960px;">
+        <h2>Create Your Plan</h2>
+        <div class="muted-text" style="margin-bottom:16px;">Fill entities step-by-step: Exercise → Program → Week/Day → Day Exercise → Planned Sets</div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+            <section>
+                <h3 style="margin-bottom:10px;">Exercise</h3>
+                <div class="form-field">
+                    <label class="form-label" for="ex-name">Name</label>
+                    <input class="input" id="ex-name" placeholder="e.g., bench press" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ex-equipment">Equipment</label>
+                    <input class="input" id="ex-equipment" placeholder="barbell" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ex-muscle">Muscle group</label>
+                    <input class="input" id="ex-muscle" placeholder="chest" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Scope</label>
+                    <select class="input" id="ex-scope">
+                        <option value="user">User (private)</option>
+                        <option value="global">Global</option>
+                    </select>
+                </div>
+                <button class="primary-button" id="btn-create-exercise">Add Exercise</button>
+                <div id="ex-result" class="muted-text"></div>
+            </section>
+
+            <section>
+                <h3 style="margin-bottom:10px;">Program</h3>
+                <div class="form-field">
+                    <label class="form-label" for="pg-title">Title</label>
+                    <input class="input" id="pg-title" placeholder="My Strength Plan" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="pg-desc">Description (optional)</label>
+                    <input class="input" id="pg-desc" placeholder="Notes" />
+                </div>
+                <button class="primary-button" id="btn-create-program">Create Program</button>
+                <div id="pg-result" class="muted-text"></div>
+            </section>
+
+            <section>
+                <h3 style="margin-bottom:10px;">Week / Day</h3>
+                <div class="form-field">
+                    <label class="form-label" for="week-number">Week number</label>
+                    <input class="input" id="week-number" type="number" min="1" value="1" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="day-of-week">Day of week (1-7)</label>
+                    <input class="input" id="day-of-week" type="number" min="1" max="7" value="1" />
+                </div>
+                <button class="primary-button" id="btn-ensure-week">Ensure Week</button>
+                <button class="primary-button" id="btn-ensure-day" style="margin-top:8px;">Ensure Day</button>
+                <div id="wd-result" class="muted-text"></div>
+            </section>
+
+            <section>
+                <h3 style="margin-bottom:10px;">Day Exercise</h3>
+                <div class="form-field">
+                    <label class="form-label" for="pde-exercise-id">Exercise ID</label>
+                    <input class="input" id="pde-exercise-id" placeholder="from Exercise result" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="pde-position">Position</label>
+                    <input class="input" id="pde-position" type="number" min="1" value="1" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="pde-notes">Notes</label>
+                    <input class="input" id="pde-notes" placeholder="optional" />
+                </div>
+                <button class="primary-button" id="btn-add-day-exercise">Add Day Exercise</button>
+                <div id="pde-result" class="muted-text"></div>
+            </section>
+
+            <section>
+                <h3 style="margin-bottom:10px;">Planned Set</h3>
+                <div class="form-field">
+                    <label class="form-label" for="ps-position">Day position (exercise)</label>
+                    <input class="input" id="ps-position" type="number" min="1" value="1" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ps-set-number">Set number</label>
+                    <input class="input" id="ps-set-number" type="number" min="1" value="1" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ps-reps">Reps</label>
+                    <input class="input" id="ps-reps" type="number" min="0" value="8" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ps-weight">Weight (kg)</label>
+                    <input class="input" id="ps-weight" type="number" min="0" step="0.5" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ps-rpe">RPE</label>
+                    <input class="input" id="ps-rpe" type="number" min="0" max="10" step="0.5" />
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="ps-rest">Rest (sec)</label>
+                    <input class="input" id="ps-rest" type="number" min="0" />
+                </div>
+                <button class="primary-button" id="btn-add-planned-set">Add Planned Set</button>
+                <div id="ps-result" class="muted-text"></div>
+            </section>
+        </div>
+
+        <p class="muted-text" style="margin-top:16px;"><a class="link" href="/">Back to home</a></p>
+    </div>
+
+    <script src="/static/create-plan.js"></script>
+</body>
+</html>
+
+

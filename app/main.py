@@ -107,7 +107,7 @@ async def api_create_program(
     description: Optional[str] = Form(None),
 ):
     try:
-        return services.create_program(owner_user_id, title, description)
+        return services.create_program_v2(owner_user_id, title, description)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

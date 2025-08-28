@@ -471,6 +471,44 @@ body {
     gap: 10px; 
   }
 
+/* AI standout button */
+.ai-button {
+    position: relative;
+    background: linear-gradient(135deg, #7C3AED, #22D3EE);
+    border: none;
+    padding: 1.5rem 4rem;
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    border-radius: 50px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(124, 58, 237, 0.35);
+    outline: 2px solid rgba(34, 211, 238, 0.25);
+}
+
+.ai-button:hover { transform: translateY(-3px); box-shadow: 0 24px 64px rgba(124, 58, 237, 0.5); }
+
+.ai-button .ai-spark {
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 70%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.35), transparent 60%);
+    transform: rotate(25deg);
+    filter: blur(12px);
+    animation: spark-move 3s linear infinite;
+}
+
+@keyframes spark-move {
+    0% { left: -20%; }
+    100% { left: 120%; }
+}
+
 /* Program actions */
 .program-actions {
     display: flex;

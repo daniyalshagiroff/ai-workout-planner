@@ -24,7 +24,7 @@ def list_exercises_v2(user_id: Optional[int]) -> List[Dict[str, Any]]:
 
 
 # Program building
-def create_program(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
+def create_program_v2(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
     pid = ProgramRepo.create(owner_user_id, title, description)
     return ProgramRepo.get(pid)
 

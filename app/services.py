@@ -12,19 +12,19 @@ class DomainError(Exception):
     pass
 
 
-# Exercises (v2)
-def create_exercise_v2(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
+# Exercises
+def create_exercise(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
     ex_id = ExerciseRepo.create(owner_user_id, name, muscle_group, equipment, 1 if is_global else 0)
     ex = ExerciseRepo.get(ex_id)
     return ex
 
 
-def list_exercises_v2(user_id: Optional[int]) -> List[Dict[str, Any]]:
+def list_exercises(user_id: Optional[int]) -> List[Dict[str, Any]]:
     return ExerciseRepo.list_for_user(user_id)
 
 
 # Program building
-def create_program_v2(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
+def create_program(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
     pid = ProgramRepo.create(owner_user_id, title, description)
     return ProgramRepo.get(pid)
 
@@ -436,93 +436,6 @@ async def list_sets(day_exercise_id: int) -> List[schemas.SetInfo]:
         )
         for set_obj in sets
     ]
-
-
-def seed_foundational_program() -> None:
-    """
-    Seed the database with the foundational bodybuilding program.
-    Creates program, cycle, week, days, exercises, and sets.
-    """
-    # Exercise definitions with default weights
-    exercises_data = [
-        ("pulldown", "cable", "lats", 40.0),
-        ("bench press", "barbell", "chest", 60.0),
-        ("barbell squat", "barbell", "quads", 80.0),
-        ("biceps curls", "dumbbells", "biceps", 12.5),
-        ("triceps pushdown", "cable", "triceps", 25.0),
-    ]
-    
-    # Create or get program
-    program = repo.get_program_by_name("Full Body")
-    if not program:
-        program = repo.create_program("Full Body", days_per_week=3)
-    
-    # Create or get cycle
-    cycle = repo.get_latest_cycle(program.id)
-    if not cycle:
-        cycle = repo.create_cycle(
-            program_id=program.id,
-            cycle_no=1,
-            started_at=datetime.now().isoformat()
-        )
-    
-    # Create exercises if they don't exist
-    exercise_map = {}
-    for ex_name, equipment, target_muscle, default_weight in exercises_data:
-        # Try to find existing exercise
-        existing_exercises = repo.list_all_exercises()
-        exercise = next((ex for ex in existing_exercises if ex.name == ex_name), None)
-        if not exercise:
-            exercise = repo.create_exercise(
-                name=ex_name,
-                equipment=equipment,
-                target_muscle=target_muscle
-            )
-        exercise_map[ex_name] = exercise
-    
-    # Create training days with emphasis
-    emphases = ["chest", "back", "legs"]
-    exercise_order = [
-        "barbell squat",
-        "bench press", 
-        "pulldown",
-        "biceps curls",
-        "triceps pushdown"
-    ]
-    
-    for i, emphasis in enumerate(emphases, start=1):
-        # Create training day
-        day = repo.create_training_day(
-            program_id=program.id,
-            cycle_id=cycle.id,
-            week_no=1,
-            name="Full Body",
-            emphasis=emphasis,
-            day_order=i
-        )
-        
-        # Add exercises to day
-        for ex_order, ex_name in enumerate(exercise_order, start=1):
-            exercise = exercise_map[ex_name]
-            day_exercise = repo.add_exercise_to_day(
-                training_day_id=day.id,
-                exercise_id=exercise.id,
-                ex_order=ex_order
-            )
-            
-            # Create 2 sets for each exercise
-            for set_order in range(1, 3):
-                repo.create_set(
-                    day_exercise_id=day_exercise.id,
-                    set_order=set_order,
-                    target_weight=exercise_map[ex_name].default_target_weight or 0.0,
-                    notes="",
-                    rpe=7.5,
-                    rep=None,
-                    weight=None,
-                    program_id=program.id,
-                    week_no=1
-                )
 
 
 def get_latest_cycle(program_name: str) -> schemas.CycleInfo:

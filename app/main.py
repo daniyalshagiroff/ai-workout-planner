@@ -10,8 +10,10 @@ import uvicorn
 from typing import Optional
 
 from . import services
+from . import db as app_db
 from .repo import UserRepo
 from .security import hash_password, verify_password, sign_token, verify_token
+from . import db as app_db
 
 app = FastAPI(
     title="IRON AI Workout Planner",
@@ -205,6 +207,69 @@ async def api_report_sets_by_muscle_group(program_id: int, week_number: int):
 @app.get("/api/v2/reports/progress")
 async def api_report_progress(program_id: int, exercise_id: int):
     return services.report_progress_for_exercise(program_id, exercise_id)
+
+
+# Read-only: list programs (for ready-made plans)
+@app.get("/api/v2/programs/list")
+async def api_programs_list():
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, description FROM program ORDER BY title")
+        return [dict(row) for row in cur.fetchall()]
+
+
+# Legacy export endpoint (used by program-view.html)
+@app.get("/api/programs/{program_name}/export")
+async def export_program(program_name: str):
+    # Build a lightweight export from current DB schema (week 1 by default)
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        # Find program by title
+        cur.execute("SELECT id, title FROM program WHERE title = ?", (program_name,))
+        prog = cur.fetchone()
+        if not prog:
+            raise HTTPException(status_code=404, detail=f"Program '{program_name}' not found")
+        program_id = prog["id"]
+
+        # Get week 1
+        cur.execute("SELECT id FROM program_week WHERE program_id = ? AND week_number = 1", (program_id,))
+        week = cur.fetchone()
+        if not week:
+            raise HTTPException(status_code=404, detail="Week 1 not found for this program")
+        week_id = week["id"]
+
+        # Days and exercises
+        cur.execute(
+            "SELECT id, day_of_week FROM program_day WHERE program_week_id = ? ORDER BY day_of_week",
+            (week_id,),
+        )
+        days_rows = cur.fetchall()
+        days_out = []
+        for d in days_rows:
+            cur.execute(
+                """
+                SELECT e.name
+                FROM program_day_exercise pde
+                JOIN exercise e ON e.id = pde.exercise_id
+                WHERE pde.program_day_id = ?
+                ORDER BY pde.position
+                """,
+                (d["id"],),
+            )
+            ex_names = [r[0] for r in cur.fetchall()]
+            # Legacy export expects label/emphasis fields
+            days_out.append({
+                "label": f"Day {d['day_of_week']}",
+                "emphasis": "",
+                "exercises": ex_names,
+            })
+
+        export = {
+            "program": {"name": prog["title"], "days_per_week": len(days_out)},
+            "week": {"week_no": 1},
+            "days": days_out,
+        }
+        return export
 
 
 if __name__ == "__main__":

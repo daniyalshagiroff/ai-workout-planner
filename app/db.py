@@ -1,11 +1,12 @@
 """
-Database connection and setup for SQLite workout tracking.
+SQLite connection helpers and schema integrity utilities for Program ↔ Workout schema.
+No destructive actions; only ensure missing indexes and triggers exist.
 """
 
 from pathlib import Path
 import sqlite3
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Iterable
 
 
 # Database file path
@@ -13,139 +14,150 @@ DB_PATH = Path(__file__).resolve().parent.parent / "database" / "workout.db"
 
 
 def get_db_path() -> Path:
-    """Get the database file path."""
     return DB_PATH
 
 
 @contextmanager
-def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
-    """
-    Context manager for database connections.
-    
-    Yields:
-        sqlite3.Connection: Configured database connection
-        
-    Example:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM programs")
-    """
+def get_connection() -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row  # Enable dict-like access to rows
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
-    
     try:
         yield conn
     finally:
         conn.close()
 
 
-def init_database() -> None:
-    """
-    Initialize the database schema.
-    Creates all tables if they don't exist.
-    """
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-
-        # Drop existing tables if they exist (for clean recreation)
-        cur.executescript("""
-        DROP TABLE IF EXISTS reps;
-        DROP TABLE IF EXISTS sets;
-        DROP TABLE IF EXISTS day_exercises;
-        DROP TABLE IF EXISTS training_days;
-        DROP TABLE IF EXISTS weeks;
-        DROP TABLE IF EXISTS program_cycles;
-        DROP TABLE IF EXISTS exercises;
-        DROP TABLE IF EXISTS programs;
-        """)
-
-        # Create tables
-        cur.execute("""
-        CREATE TABLE programs (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL,
-            days_per_week  INTEGER NOT NULL
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE program_cycles (
-            id         INTEGER PRIMARY KEY,
-            program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-            cycle_no   INTEGER NOT NULL,
-            started_at TEXT,
-            UNIQUE(program_id, cycle_no)
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE weeks (
-            id        INTEGER PRIMARY KEY,
-            cycle_id  INTEGER NOT NULL REFERENCES program_cycles(id) ON DELETE CASCADE,
-            week_no   INTEGER NOT NULL,
-            UNIQUE(cycle_id, week_no)
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE exercises (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL UNIQUE,
-            equipment   TEXT NOT NULL,
-            target_muscle TEXT NOT NULL
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE training_days (
-            id        INTEGER PRIMARY KEY,
-            week_id   INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
-            name      TEXT,
-            emphasis  TEXT,
-            day_order INTEGER NOT NULL,
-            UNIQUE(week_id, day_order)
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE day_exercises (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            training_day_id INTEGER NOT NULL REFERENCES training_days(id) ON DELETE CASCADE,
-            exercise_id     INTEGER NOT NULL REFERENCES exercises(id),
-            ex_order        INTEGER NOT NULL,
-            UNIQUE(training_day_id, ex_order)
-        );
-        """)
-
-        cur.execute("""
-        CREATE TABLE sets (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            day_exercise_id INTEGER NOT NULL REFERENCES day_exercises(id) ON DELETE CASCADE,
-            set_order       INTEGER NOT NULL,
-            target_weight   REAL, 
-            notes           TEXT,
-            rpe             REAL, 
-            rep             INTEGER,
-            weight          REAL,
-            UNIQUE(day_exercise_id, set_order)
-        );
-        """)
-
-        # Create indexes
-        cur.executescript("""
-        CREATE INDEX idx_cycles_program ON program_cycles(program_id);
-        CREATE INDEX idx_weeks_cycle    ON weeks(cycle_id);
-        CREATE INDEX idx_days_week      ON training_days(week_id);
-        CREATE INDEX idx_dayex_day      ON day_exercises(training_day_id);
-        CREATE INDEX idx_sets_dayex     ON sets(day_exercise_id);
-        """)
-
+@contextmanager
+def transaction(conn: sqlite3.Connection) -> Iterable[sqlite3.Cursor]:
+    cur = conn.cursor()
+    try:
+        cur.execute("BEGIN")
+        yield cur
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def _execute_many(cur: sqlite3.Cursor, statements: Iterable[str]) -> None:
+    for stmt in statements:
+        if not stmt:
+            continue
+        cur.execute(stmt)
+
+
+def ensure_schema_integrity() -> None:
+    """
+    Ensure required indexes and triggers exist for the Program ↔ Workout schema.
+    - Creates idempotent indexes on FK/join columns
+    - Creates BEFORE INSERT/UPDATE triggers on workout_set enforcing invariants A/B/C
+    """
+    with get_connection() as conn, transaction(conn) as cur:
+        # Indexes (idempotent)
+        _execute_many(cur, [
+            # Program hierarchy
+            "CREATE INDEX IF NOT EXISTS program_owner_idx ON program(owner_user_id)",
+            "CREATE INDEX IF NOT EXISTS program_week_program_idx ON program_week(program_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS program_week_uq ON program_week(program_id, week_number)",
+            "CREATE INDEX IF NOT EXISTS program_day_week_idx ON program_day(program_week_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS program_day_uq ON program_day(program_week_id, day_of_week)",
+            "CREATE INDEX IF NOT EXISTS program_day_exercise_day_idx ON program_day_exercise(program_day_id)",
+            "CREATE INDEX IF NOT EXISTS program_day_exercise_ex_idx ON program_day_exercise(exercise_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS program_day_exercise_uq ON program_day_exercise(program_day_id, position)",
+            "CREATE INDEX IF NOT EXISTS planned_set_pde_idx ON planned_set(program_day_exercise_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS planned_set_uq ON planned_set(program_day_exercise_id, set_number)",
+            # Workouts
+            "CREATE INDEX IF NOT EXISTS workout_owner_idx ON workout(owner_user_id)",
+            "CREATE INDEX IF NOT EXISTS workout_program_day_idx ON workout(program_day_id)",
+            "CREATE INDEX IF NOT EXISTS workout_exercise_wk_idx ON workout_exercise(workout_id)",
+            "CREATE INDEX IF NOT EXISTS workout_exercise_pde_idx ON workout_exercise(program_day_exercise_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS workout_exercise_uq ON workout_exercise(workout_id, position)",
+            "CREATE INDEX IF NOT EXISTS workout_set_wex_idx ON workout_set(workout_exercise_id)",
+            "CREATE INDEX IF NOT EXISTS workout_set_planned_idx ON workout_set(planned_set_id)",
+        ])
+
+        # Triggers: create only if not already present
+        cur.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
+        existing_triggers = {row[0] for row in cur.fetchall()}
+
+        if "trg_workout_set_before_ins" not in existing_triggers:
+            cur.executescript(
+                """
+                CREATE TRIGGER trg_workout_set_before_ins
+                BEFORE INSERT ON workout_set
+                FOR EACH ROW
+                BEGIN
+                  -- A) set_number equals planned
+                  SELECT CASE
+                    WHEN NEW.set_number <> (
+                      SELECT ps.set_number FROM planned_set ps WHERE ps.id = NEW.planned_set_id
+                    ) THEN RAISE(ABORT, 'workout_set.set_number must equal planned_set.set_number')
+                  END;
+
+                  -- B) workout_exercise.program_day_exercise_id equals planned_set.program_day_exercise_id
+                  SELECT CASE
+                    WHEN (
+                      SELECT wex.program_day_exercise_id FROM workout_exercise wex WHERE wex.id = NEW.workout_exercise_id
+                    ) <> (
+                      SELECT ps.program_day_exercise_id FROM planned_set ps WHERE ps.id = NEW.planned_set_id
+                    ) THEN RAISE(ABORT, 'workout_exercise.program_day_exercise_id must equal planned_set.program_day_exercise_id')
+                  END;
+
+                  -- C) do not exceed planned sets count
+                  SELECT CASE
+                    WHEN (
+                      (SELECT COUNT(*) FROM workout_set ws WHERE ws.workout_exercise_id = NEW.workout_exercise_id) + 1
+                    ) > (
+                      SELECT COUNT(*) FROM planned_set ps
+                      WHERE ps.program_day_exercise_id = (
+                        SELECT wex.program_day_exercise_id FROM workout_exercise wex WHERE wex.id = NEW.workout_exercise_id
+                      )
+                    ) THEN RAISE(ABORT, 'Actual workout sets cannot exceed planned sets for this exercise instance')
+                  END;
+                END;
+                """
+            )
+
+        if "trg_workout_set_before_upd" not in existing_triggers:
+            cur.executescript(
+                """
+                CREATE TRIGGER trg_workout_set_before_upd
+                BEFORE UPDATE OF planned_set_id, workout_exercise_id, set_number ON workout_set
+                FOR EACH ROW
+                BEGIN
+                  -- A) set_number equals planned
+                  SELECT CASE
+                    WHEN NEW.set_number <> (
+                      SELECT ps.set_number FROM planned_set ps WHERE ps.id = NEW.planned_set_id
+                    ) THEN RAISE(ABORT, 'workout_set.set_number must equal planned_set.set_number')
+                  END;
+
+                  -- B) workout_exercise.program_day_exercise_id equals planned_set.program_day_exercise_id
+                  SELECT CASE
+                    WHEN (
+                      SELECT wex.program_day_exercise_id FROM workout_exercise wex WHERE wex.id = NEW.workout_exercise_id
+                    ) <> (
+                      SELECT ps.program_day_exercise_id FROM planned_set ps WHERE ps.id = NEW.planned_set_id
+                    ) THEN RAISE(ABORT, 'workout_exercise.program_day_exercise_id must equal planned_set.program_day_exercise_id')
+                  END;
+
+                  -- C) do not exceed planned sets count (exclude OLD row)
+                  SELECT CASE
+                    WHEN (
+                      (SELECT COUNT(*) FROM workout_set ws WHERE ws.workout_exercise_id = NEW.workout_exercise_id AND ws.id <> OLD.id) + 1
+                    ) > (
+                      SELECT COUNT(*) FROM planned_set ps
+                      WHERE ps.program_day_exercise_id = (
+                        SELECT wex.program_day_exercise_id FROM workout_exercise wex WHERE wex.id = NEW.workout_exercise_id
+                      )
+                    ) THEN RAISE(ABORT, 'Actual workout sets cannot exceed planned sets for this exercise instance')
+                  END;
+                END;
+                """
+            )
 
 
 if __name__ == "__main__":
-    init_database()
-    print(f"Database initialized at {DB_PATH}")
+    ensure_schema_integrity()
+    print(f"Ensured schema integrity at {DB_PATH}")

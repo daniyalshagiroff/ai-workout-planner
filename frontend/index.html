@@ -10,18 +10,30 @@
     <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+    <div class="top-nav">
+        <div class="brand" onclick="window.location.href='/'">IRON AI</div>
+        <div id="auth-bar" class="auth-bar">
+            <button id="btn-register" class="auth-link" style="display:none;">Register</button>
+            <button id="btn-login" class="auth-link" style="display:none;">Log In</button>
+            <button id="btn-profile" class="auth-link" style="display:none;">Profile</button>
+            <button id="btn-logout" class="auth-link" style="display:none;">Log Out</button>
+        </div>
+    </div>
     <div class="hero">
         <div class="hero-content">
             <h1 class="site-title">IRON AI</h1>
             <h2 class="hero-headline">TRAIN LIKE THE ELITE</h2>
             <p class="hero-subtitle">Unleash your potential with AI-powered training</p>
             <div class="button-container">
-                <button class="cta-button" onclick="window.location.href='/static/workouts.html'">
-                    <span class="button-text">START</span>
-                    <span class="button-glow"></span>
+                <button class="ai-button" onclick="window.location.href='/static/ai-plan.html'">
+                    <span class="button-text">CREATE PLAN USING AI</span>
+                    <span class="ai-spark"></span>
+                </button>
+                <button class="continue-button" onclick="window.location.href='/static/ready-plans.html'">
+                    <span class="button-text">CHOOSE FROM READY-MADE PLANS</span>
                 </button>
                 <button class="continue-button" onclick="window.location.href='/static/workout-plan.html'">
-                    <span class="button-text">CONTINUE YOUR PLAN</span>
+                    <span class="button-text">CONTINUE WITH YOUR PLAN</span>
                 </button>
             </div>
         </div>
@@ -34,6 +46,28 @@
             </div>
         </div>
     </div>
+
+    <div id="modal-register" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Register</h3>
+            <input id="reg-email" type="email" placeholder="Email" />
+            <input id="reg-password" type="password" placeholder="Password" />
+            <button id="reg-submit">Create account</button>
+            <button class="modal-close">Close</button>
+        </div>
+    </div>
+
+    <div id="modal-login" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Log In</h3>
+            <input id="login-email" type="email" placeholder="Email" />
+            <input id="login-password" type="password" placeholder="Password" />
+            <button id="login-submit">Log In</button>
+            <button class="modal-close">Close</button>
+        </div>
+    </div>
+
+    <script src="/static/auth.js"></script>
 </body>
 </html>
 

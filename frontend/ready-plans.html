@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ready-made Plans - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:960px;">
+        <h2>Choose a Ready-made Plan</h2>
+        <div id="plans" class="form-field">Loading...</div>
+        <p class="muted-text"><a class="link" href="/">Back to home</a></p>
+    </div>
+    <script>
+    function renderPlans(items) {
+      const c = document.getElementById('plans');
+      if (!items.length) { c.textContent = 'No programs found'; return; }
+      c.innerHTML = '';
+      items.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'program-card';
+        card.style.marginBottom = '12px';
+        card.innerHTML = `
+          <div class="program-header">
+            <div>
+              <div class="program-title">${p.title}</div>
+              <div class="program-description">${p.description || ''}</div>
+            </div>
+            <div class="program-badge">6 Weeks</div>
+          </div>
+          <div class="program-arrow">→</div>
+        `;
+        card.addEventListener('click', () => {
+          window.location.href = `/static/program-view.html?program_name=${encodeURIComponent(p.title)}`;
+        });
+        c.appendChild(card);
+      });
+    }
+    (function init(){
+      // For now, show the foundational plan sourced from DB by name via export endpoint on next page
+      renderPlans([{ id: 'foundational', title: 'FOUNDATIONAL PLAN', description: '6-week foundational strength/hypertrophy base' }]);
+    })();
+    </script>
+</body>
+</html>
+
+

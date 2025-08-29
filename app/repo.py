@@ -1,664 +1,349 @@
 """
-Repository layer for database operations.
-Contains all SQL queries and data access logic.
+Repository layer for the Program ↔ Workout schema. CRUD only, no business logic.
+Classes: UserRepo, ExerciseRepo, ProgramRepo, WorkoutRepo
 """
 
-from typing import List, Optional, Dict, Any
-from dataclasses import dataclass
-from datetime import datetime
-
+from typing import Optional, List, Dict, Any, Tuple
 from . import db
 
 
-@dataclass
-class Program:
-    id: int
-    name: str
-    days_per_week: int
-
-
-@dataclass
-class ProgramCycle:
-    id: int
-    program_id: int
-    cycle_no: int
-    started_at: str
-
-
-@dataclass
-class Week:
-    id: int
-    cycle_id: int
-    program_id: int
-    week_no: int
-
-
-@dataclass
-class Exercise:
-    id: int
-    name: str
-    equipment: str
-    target_muscle: str
-    default_target_weight: Optional[float] = None
-
-
-@dataclass
-class TrainingDay:
-    id: int
-    week_id: int
-    name: Optional[str]
-    emphasis: Optional[str]
-    day_order: int
-
-
-@dataclass
-class DayExercise:
-    id: int
-    training_day_id: int
-    exercise_id: int
-    ex_order: int
-
-
-@dataclass
-class Set:
-    id: int
-    day_exercise_id: int
-    week_id: int
-    set_order: int
-    target_weight: Optional[float]
-    notes: Optional[str]
-    rpe: Optional[float]
-    rep: Optional[int]
-    weight: Optional[float]
-
-
-def get_program_by_name(name: str) -> Optional[Program]:
-    """Get program by name."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, name, days_per_week FROM programs WHERE name = ?",
-            (name,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Program(
-            id=row["id"],
-            name=row["name"],
-            days_per_week=row["days_per_week"]
-        )
-
-
-def get_latest_cycle(program_id: int) -> Optional[ProgramCycle]:
-    """Get the latest cycle for a program by started_at date."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT id, program_id, cycle_no, started_at
-            FROM program_cycles
-            WHERE program_id = ?
-            ORDER BY datetime(started_at) DESC
-            LIMIT 1
-            """,
-            (program_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return ProgramCycle(
-            id=row["id"],
-            program_id=row["program_id"],
-            cycle_no=row["cycle_no"],
-            started_at=row["started_at"]
-        )
-
-
-def get_week_by_number(cycle_id: int, week_no: int) -> Optional[Week]:
-    """Get week by cycle and week number."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, cycle_id, program_id, week_no FROM weeks WHERE cycle_id = ? AND week_no = ?",
-            (cycle_id, week_no)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Week(
-            id=row["id"],
-            cycle_id=row["cycle_id"],
-            program_id=row["program_id"],
-            week_no=row["week_no"]
-        )
-
-
-def get_training_days(week_id: int) -> List[TrainingDay]:
-    """Get all training days for a week, ordered by day_order."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT id, week_id, name, emphasis, day_order
-            FROM training_days
-            WHERE week_id = ?
-            ORDER BY day_order ASC
-            """,
-            (week_id,)
-        )
-        return [
-            TrainingDay(
-                id=row["id"],
-                week_id=row["week_id"],
-                name=row["name"],
-                emphasis=row["emphasis"],
-                day_order=row["day_order"]
+class UserRepo:
+    @staticmethod
+    def create(email: str, password_hash: str) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO users(email, password_hash) VALUES(?, ?)",
+                (email, password_hash),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
+
+    @staticmethod
+    def get_by_email(email: str) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM users WHERE email = ?", (email,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def get_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
 
 
-def get_day_exercises(training_day_id: int) -> List[Dict[str, Any]]:
-    """
-    Get exercises for a training day with exercise details.
-    Returns list of dicts with exercise info and order.
-    """
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT 
-                de.id as day_exercise_id,
-                de.ex_order,
-                e.id as exercise_id,
-                e.name as exercise_name,
-                e.equipment,
-                e.target_muscle
-            FROM day_exercises de
-            JOIN exercises e ON e.id = de.exercise_id
-            WHERE de.training_day_id = ?
-            ORDER BY de.ex_order ASC
-            """,
-            (training_day_id,)
-        )
-        return [dict(row) for row in cur.fetchall()]
-
-
-def get_sets_for_day_exercise(day_exercise_id: int) -> List[Set]:
-    """Get all sets for a day exercise, ordered by set_order."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT id, day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight
-            FROM sets
-            WHERE day_exercise_id = ?
-            ORDER BY set_order ASC
-            """,
-            (day_exercise_id,)
-        )
-        return [
-            Set(
-                id=row["id"],
-                day_exercise_id=row["day_exercise_id"],
-                week_id=row["week_id"],
-                set_order=row["set_order"],
-                target_weight=row["target_weight"],
-                notes=row["notes"],
-                rpe=row["rpe"],
-                rep=row["rep"],
-                weight=row["weight"]
+class ExerciseRepo:
+    @staticmethod
+    def create(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: int) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO exercise(owner_user_id, name, muscle_group, equipment, is_global)
+                VALUES(?, ?, ?, ?, ?)
+                """,
+                (owner_user_id, name, muscle_group, equipment, is_global),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
+
+    @staticmethod
+    def get(exercise_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM exercise WHERE id = ?", (exercise_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def list_for_user(user_id: Optional[int]) -> List[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            if user_id is None:
+                cur.execute("SELECT * FROM exercise WHERE is_global = 1 ORDER BY name")
+            else:
+                cur.execute(
+                    "SELECT * FROM exercise WHERE is_global = 1 OR owner_user_id = ? ORDER BY name",
+                    (user_id,),
+                )
+            return [dict(r) for r in cur.fetchall()]
 
 
-def list_all_programs() -> List[Program]:
-    """Get all programs."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, days_per_week FROM programs ORDER BY name")
-        return [
-            Program(
-                id=row["id"],
-                name=row["name"],
-                days_per_week=row["days_per_week"]
+class ProgramRepo:
+    @staticmethod
+    def create(owner_user_id: int, title: str, description: Optional[str]) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO program(owner_user_id, title, description) VALUES(?, ?, ?)",
+                (owner_user_id, title, description),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
 
+    @staticmethod
+    def get(program_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM program WHERE id = ?", (program_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
 
-def create_program(name: str, days_per_week: int) -> Program:
-    """Create a new program."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO programs(name, days_per_week) VALUES(?, ?)",
-            (name, days_per_week)
-        )
-        program_id = cur.lastrowid
-        conn.commit()
-        return Program(id=program_id, name=name, days_per_week=days_per_week)
-
-
-def create_cycle(program_id: int, cycle_no: int, started_at: str) -> ProgramCycle:
-    """Create a new program cycle."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO program_cycles(program_id, cycle_no, started_at) VALUES(?, ?, ?)",
-            (program_id, cycle_no, started_at)
-        )
-        cycle_id = cur.lastrowid
-        conn.commit()
-        return ProgramCycle(
-            id=cycle_id,
-            program_id=program_id,
-            cycle_no=cycle_no,
-            started_at=started_at
-        )
-
-
-def create_week(cycle_id: int, week_no: int) -> Week:
-    """Create a new week in a cycle."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        # Получаем program_id из cycle
-        cur.execute("SELECT program_id FROM program_cycles WHERE id = ?", (cycle_id,))
-        cycle_row = cur.fetchone()
-        if not cycle_row:
-            raise ValueError(f"Cycle with ID {cycle_id} not found")
-        program_id = cycle_row["program_id"]
-        
-        cur.execute(
-            "INSERT INTO weeks (cycle_id, program_id, week_no) VALUES (?, ?, ?)",
-            (cycle_id, program_id, week_no)
-        )
-        week_id = cur.lastrowid
-        conn.commit()
-        return Week(
-            id=week_id,
-            cycle_id=cycle_id,
-            program_id=program_id,
-            week_no=week_no
-        )
-
-
-def create_training_day(week_id: int, name: Optional[str], emphasis: Optional[str], day_order: int) -> TrainingDay:
-    """Create a new training day."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO training_days(week_id, name, emphasis, day_order) VALUES(?, ?, ?, ?)",
-            (week_id, name, emphasis, day_order)
-        )
-        day_id = cur.lastrowid
-        conn.commit()
-        return TrainingDay(
-            id=day_id,
-            week_id=week_id,
-            name=name,
-            emphasis=emphasis,
-            day_order=day_order
-        )
-
-
-def create_exercise(name: str, equipment: str, target_muscle: str) -> Exercise:
-    """Create a new exercise."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO exercises(name, equipment, target_muscle) VALUES(?, ?, ?)",
-            (name, equipment, target_muscle)
-        )
-        exercise_id = cur.lastrowid
-        conn.commit()
-        return Exercise(
-            id=exercise_id,
-            name=name,
-            equipment=equipment,
-            target_muscle=target_muscle
-        )
-
-
-def add_exercise_to_day(training_day_id: int, exercise_id: int, ex_order: int) -> DayExercise:
-    """Add an exercise to a training day."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO day_exercises(training_day_id, exercise_id, ex_order) VALUES(?, ?, ?)",
-            (training_day_id, exercise_id, ex_order)
-        )
-        day_exercise_id = cur.lastrowid
-        conn.commit()
-        return DayExercise(
-            id=day_exercise_id,
-            training_day_id=training_day_id,
-            exercise_id=exercise_id,
-            ex_order=ex_order
-        )
-
-
-def create_set(day_exercise_id: int, set_order: int, rep: int, weight: int, target_weight: Optional[float] = None,
-               notes: Optional[str] = None, rpe: Optional[float] = None) -> Set:
-    """Create a new set."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        # Получаем week_id из day_exercise через training_day
-        cur.execute("""
-            SELECT td.week_id 
-            FROM day_exercises de 
-            JOIN training_days td ON de.training_day_id = td.id 
-            WHERE de.id = ?
-        """, (day_exercise_id,))
-        week_row = cur.fetchone()
-        if not week_row:
-            raise ValueError(f"Day exercise with ID {day_exercise_id} not found")
-        week_id = week_row["week_id"]
-        
-        cur.execute(
-            """
-            INSERT INTO sets(day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight)
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight)
-        )
-        set_id = cur.lastrowid
-        conn.commit()
-        return Set(
-            id=set_id,
-            day_exercise_id=day_exercise_id,
-            week_id=week_id,
-            set_order=set_order,
-            target_weight=target_weight,
-            notes=notes,
-            rpe=rpe,
-            rep=rep,
-            weight=weight
-        )
-
-
-def update_set(set_id: int, rep: int, weight: int, target_weight: Optional[float] = None) -> Set:
-    """Update an existing set with rep, weight, and target_weight."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            UPDATE sets 
-            SET rep = ?, weight = ?, target_weight = ?
-            WHERE id = ?
-            """,
-            (rep, weight, target_weight, set_id)
-        )
-        conn.commit()
-        
-        # Get the updated set
-        cur.execute(
-            "SELECT * FROM sets WHERE id = ?",
-            (set_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            raise ValueError(f"Set with ID {set_id} not found")
-        
-        return Set(
-            id=row["id"],
-            day_exercise_id=row["day_exercise_id"],
-            week_id=row["week_id"],
-            set_order=row["set_order"],
-            target_weight=row["target_weight"],
-            notes=row["notes"],
-            rpe=row["rpe"],
-            rep=row["rep"],
-            weight=row["weight"]
-        )
-
-
-def list_all_exercises() -> List[Exercise]:
-    """Get all exercises."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, name, equipment, target_muscle FROM exercises ORDER BY name")
-        return [
-            Exercise(
-                id=row["id"],
-                name=row["name"],
-                equipment=row["equipment"],
-                target_muscle=row["target_muscle"]
+    @staticmethod
+    def create_week(program_id: int, week_number: int) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO program_week(program_id, week_number) VALUES(?, ?)",
+                (program_id, week_number),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
 
-
-def get_program_by_id(program_id: int) -> Optional[Program]:
-    """Get program by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, name, days_per_week FROM programs WHERE id = ?",
-            (program_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Program(
-            id=row["id"],
-            name=row["name"],
-            days_per_week=row["days_per_week"]
-        )
-
-
-def get_cycle_by_id(cycle_id: int) -> Optional[ProgramCycle]:
-    """Get cycle by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, program_id, cycle_no, started_at FROM program_cycles WHERE id = ?",
-            (cycle_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return ProgramCycle(
-            id=row["id"],
-            program_id=row["program_id"],
-            cycle_no=row["cycle_no"],
-            started_at=row["started_at"]
-        )
-
-
-def list_cycles_by_program(program_id: int) -> List[ProgramCycle]:
-    """Get all cycles for a program."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, program_id, cycle_no, started_at FROM program_cycles WHERE program_id = ? ORDER BY cycle_no",
-            (program_id,)
-        )
-        return [
-            ProgramCycle(
-                id=row["id"],
-                program_id=row["program_id"],
-                cycle_no=row["cycle_no"],
-                started_at=row["started_at"]
+    @staticmethod
+    def create_day(program_week_id: int, day_of_week: int) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO program_day(program_week_id, day_of_week) VALUES(?, ?)",
+                (program_week_id, day_of_week),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
 
-
-def get_week_by_id(week_id: int) -> Optional[Week]:
-    """Get week by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, cycle_id, week_no FROM weeks WHERE id = ?",
-            (week_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Week(
-            id=row["id"],
-            cycle_id=row["cycle_id"],
-            week_no=row["week_no"]
-        )
-
-
-def list_weeks_by_cycle(cycle_id: int) -> List[Week]:
-    """Get all weeks for a cycle."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, cycle_id, program_id, week_no FROM weeks WHERE cycle_id = ? ORDER BY week_no",
-            (cycle_id,)
-        )
-        return [
-            Week(
-                id=row["id"],
-                cycle_id=row["cycle_id"],
-                program_id=row["program_id"],
-                week_no=row["week_no"]
+    @staticmethod
+    def add_day_exercise(program_day_id: int, exercise_id: int, position: int, notes: Optional[str]) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO program_day_exercise(program_day_id, exercise_id, position, notes)
+                VALUES(?, ?, ?, ?)
+                """,
+                (program_day_id, exercise_id, position, notes),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
 
-
-def get_training_day_by_id(day_id: int) -> Optional[TrainingDay]:
-    """Get training day by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, week_id, name, emphasis, day_order FROM training_days WHERE id = ?",
-            (day_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return TrainingDay(
-            id=row["id"],
-            week_id=row["week_id"],
-            name=row["name"],
-            emphasis=row["emphasis"],
-            day_order=row["day_order"]
-        )
-
-
-def list_training_days_by_week(week_id: int) -> List[TrainingDay]:
-    """Get all training days for a week."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, week_id, name, emphasis, day_order FROM training_days WHERE week_id = ? ORDER BY day_order",
-            (week_id,)
-        )
-        return [
-            TrainingDay(
-                id=row["id"],
-                week_id=row["week_id"],
-                name=row["name"],
-                emphasis=row["emphasis"],
-                day_order=row["day_order"]
+    @staticmethod
+    def add_planned_set(program_day_exercise_id: int, set_number: int, reps: int, weight: Optional[float], rpe: Optional[float], rest_seconds: Optional[int]) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO planned_set(program_day_exercise_id, set_number, reps, weight, rpe, rest_seconds)
+                VALUES(?, ?, ?, ?, ?, ?)
+                """,
+                (program_day_exercise_id, set_number, reps, weight, rpe, rest_seconds),
             )
-            for row in cur.fetchall()
-        ]
+            return cur.lastrowid
 
-
-def get_exercise_by_id(exercise_id: int) -> Optional[Exercise]:
-    """Get exercise by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, name, equipment, target_muscle FROM exercises WHERE id = ?",
-            (exercise_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Exercise(
-            id=row["id"],
-            name=row["name"],
-            equipment=row["equipment"],
-            target_muscle=row["target_muscle"]
-        )
-
-
-def get_exercise_by_name(name: str) -> Optional[Exercise]:
-    """Get exercise by name."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, name, equipment, target_muscle FROM exercises WHERE name = ?",
-            (name,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return Exercise(
-            id=row["id"],
-            name=row["name"],
-            equipment=row["equipment"],
-            target_muscle=row["target_muscle"]
-        )
-
-
-def get_day_exercise_by_id(day_exercise_id: int) -> Optional[DayExercise]:
-    """Get day exercise by ID."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, training_day_id, exercise_id, ex_order FROM day_exercises WHERE id = ?",
-            (day_exercise_id,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return DayExercise(
-            id=row["id"],
-            training_day_id=row["training_day_id"],
-            exercise_id=row["exercise_id"],
-            ex_order=row["ex_order"]
-        )
-
-
-def list_day_exercises_by_training_day(training_day_id: int) -> List[DayExercise]:
-    """Get all day exercises for a training day."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, training_day_id, exercise_id, ex_order FROM day_exercises WHERE training_day_id = ? ORDER BY ex_order",
-            (training_day_id,)
-        )
-        return [
-            DayExercise(
-                id=row["id"],
-                training_day_id=row["training_day_id"],
-                exercise_id=row["exercise_id"],
-                ex_order=row["ex_order"]
+    @staticmethod
+    def get_week(program_id: int, week_number: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM program_week WHERE program_id = ? AND week_number = ?",
+                (program_id, week_number),
             )
-            for row in cur.fetchall()
-        ]
+            row = cur.fetchone()
+            return dict(row) if row else None
 
-
-def list_sets_by_day_exercise(day_exercise_id: int) -> List[Set]:
-    """Get all sets for a day exercise."""
-    with db.get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, day_exercise_id, week_id, set_order, target_weight, notes, rpe, rep, weight FROM sets WHERE day_exercise_id = ? ORDER BY set_order",
-            (day_exercise_id,)
-        )
-        return [
-            Set(
-                id=row["id"],
-                day_exercise_id=row["day_exercise_id"],
-                week_id=row["week_id"],
-                set_order=row["set_order"],
-                target_weight=row["target_weight"],
-                notes=row["notes"],
-                rpe=row["rpe"],
-                rep=row["rep"],
-                weight=row["weight"]
+    @staticmethod
+    def get_day(program_week_id: int, day_of_week: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM program_day WHERE program_week_id = ? AND day_of_week = ?",
+                (program_week_id, day_of_week),
             )
-            for row in cur.fetchall()
-        ]
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def get_day_exercise(program_day_id: int, position: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM program_day_exercise WHERE program_day_id = ? AND position = ?",
+                (program_day_id, position),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def list_day_exercises(program_day_id: int) -> List[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM program_day_exercise WHERE program_day_id = ? ORDER BY position",
+                (program_day_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+    @staticmethod
+    def list_planned_sets(program_day_exercise_id: int) -> List[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT * FROM planned_set WHERE program_day_exercise_id = ? ORDER BY set_number",
+                (program_day_exercise_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+
+
+class WorkoutRepo:
+    @staticmethod
+    def start(owner_user_id: int, program_day_id: int, started_at: Optional[str]) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO workout(owner_user_id, program_day_id, started_at) VALUES(?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
+                (owner_user_id, program_day_id, started_at),
+            )
+            return cur.lastrowid
+
+    @staticmethod
+    def finish(workout_id: int, finished_at: Optional[str], notes: Optional[str]) -> None:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "UPDATE workout SET finished_at = COALESCE(?, CURRENT_TIMESTAMP), notes = COALESCE(?, notes) WHERE id = ?",
+                (finished_at, notes, workout_id),
+            )
+
+    @staticmethod
+    def ensure_workout_exercise(workout_id: int, program_day_exercise_id: int, position: int) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                "SELECT id FROM workout_exercise WHERE workout_id = ? AND program_day_exercise_id = ?",
+                (workout_id, program_day_exercise_id),
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+            cur.execute(
+                "INSERT INTO workout_exercise(workout_id, program_day_exercise_id, position) VALUES(?, ?, ?)",
+                (workout_id, program_day_exercise_id, position),
+            )
+            return cur.lastrowid
+
+    @staticmethod
+    def add_workout_set(workout_exercise_id: int, planned_set_id: int, set_number: int, reps: int, weight: Optional[float], rpe: Optional[float], rest_seconds: Optional[int]) -> int:
+        with db.get_connection() as conn, db.transaction(conn) as cur:
+            cur.execute(
+                """
+                INSERT INTO workout_set(workout_exercise_id, planned_set_id, set_number, reps, weight, rpe, rest_seconds)
+                VALUES(?, ?, ?, ?, ?, ?, ?)
+                """,
+                (workout_exercise_id, planned_set_id, set_number, reps, weight, rpe, rest_seconds),
+            )
+            return cur.lastrowid
+
+    @staticmethod
+    def get_workout(workout_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM workout WHERE id = ?", (workout_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def count_actual_sets_for_wex(workout_exercise_id: int) -> int:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM workout_set WHERE workout_exercise_id = ?", (workout_exercise_id,))
+            return int(cur.fetchone()[0])
+
+    @staticmethod
+    def planned_count_for_pde(program_day_exercise_id: int) -> int:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM planned_set WHERE program_day_exercise_id = ?", (program_day_exercise_id,))
+            return int(cur.fetchone()[0])
+
+    @staticmethod
+    def get_planned_set(planned_set_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM planned_set WHERE id = ?", (planned_set_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    @staticmethod
+    def get_workout_exercise(wex_id: int) -> Optional[Dict[str, Any]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM workout_exercise WHERE id = ?", (wex_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    # Reports (SQL only)
+    @staticmethod
+    def report_planned_sets_for_week(program_id: int, week_number: int) -> int:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT COUNT(ps.id)
+                FROM program_week pw
+                JOIN program_day pd ON pd.program_week_id = pw.id
+                JOIN program_day_exercise pde ON pde.program_day_id = pd.id
+                JOIN planned_set ps ON ps.program_day_exercise_id = pde.id
+                WHERE pw.program_id = ? AND pw.week_number = ?
+                """,
+                (program_id, week_number),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
+    @staticmethod
+    def report_actual_sets_for_week(program_id: int, week_number: int) -> int:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT COUNT(ws.id)
+                FROM program_week pw
+                JOIN program_day pd ON pd.program_week_id = pw.id
+                JOIN workout w ON w.program_day_id = pd.id
+                LEFT JOIN workout_exercise wex ON wex.workout_id = w.id
+                LEFT JOIN workout_set ws ON ws.workout_exercise_id = wex.id
+                WHERE pw.program_id = ? AND pw.week_number = ?
+                """,
+                (program_id, week_number),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
+    @staticmethod
+    def report_sets_by_muscle_group(program_id: int, week_number: int) -> List[Tuple[str, int]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT e.muscle_group, COUNT(ws.id) AS cnt
+                FROM program_week pw
+                JOIN program_day pd ON pd.program_week_id = pw.id
+                JOIN program_day_exercise pde ON pde.program_day_id = pd.id
+                JOIN exercise e ON e.id = pde.exercise_id
+                JOIN workout w ON w.program_day_id = pd.id
+                JOIN workout_exercise wex ON wex.program_day_exercise_id = pde.id
+                JOIN workout_set ws ON ws.workout_exercise_id = wex.id
+                WHERE pw.program_id = ? AND pw.week_number = ?
+                GROUP BY e.muscle_group
+                ORDER BY e.muscle_group
+                """,
+                (program_id, week_number),
+            )
+            return [(row[0], int(row[1])) for row in cur.fetchall()]
+
+    @staticmethod
+    def report_progress_for_exercise(program_id: int, exercise_id: int) -> List[Tuple[int, float, float]]:
+        with db.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT pw.week_number, AVG(ws.weight) AS avg_weight, AVG(ws.reps) AS avg_reps
+                FROM program_day_exercise pde
+                JOIN program_day pd ON pd.id = pde.program_day_id
+                JOIN program_week pw ON pw.id = pd.program_week_id
+                JOIN workout_exercise wex ON wex.program_day_exercise_id = pde.id
+                JOIN workout_set ws ON ws.workout_exercise_id = wex.id
+                WHERE pde.exercise_id = ? AND pw.program_id = ?
+                GROUP BY pw.week_number
+                ORDER BY pw.week_number
+                """,
+                (exercise_id, program_id),
+            )
+            return [(int(row[0]), float(row[1]) if row[1] is not None else 0.0, float(row[2]) if row[2] is not None else 0.0) for row in cur.fetchall()]
+

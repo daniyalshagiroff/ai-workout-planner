@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Program View - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:960px;">
+        <h2 id="title">Program</h2>
+        <div id="week-view" class="form-field">Loading...</div>
+        <p class="muted-text"><a class="link" href="/static/ready-plans.html">Back to plans</a></p>
+    </div>
+    <script>
+    function q(name){ return new URLSearchParams(location.search).get(name); }
+    async function fetchJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error('Failed '+url); return r.json(); }
+    async function init(){
+      const programName = q('program_name');
+      if(!programName){ document.getElementById('week-view').textContent = 'No program selected'; return; }
+      document.getElementById('title').textContent = programName;
+      // Show week 1 only via legacy export endpoint
+      const data = await (await fetch(`/api/programs/${encodeURIComponent(programName)}/export`)).json();
+      const c = document.getElementById('week-view');
+      c.innerHTML = '';
+      if(!data.days || !data.days.length){ c.textContent = 'No days found'; return; }
+      data.days.forEach((d, idx)=>{
+        const day = document.createElement('div');
+        day.className = 'day-card';
+        day.style.marginBottom = '12px';
+        day.innerHTML = `<div class="day-title"><h3>Day ${idx+1}</h3></div>`;
+        const list = document.createElement('ul'); list.className = 'exercise-list';
+        d.exercises.forEach(name=>{
+          const li = document.createElement('li'); li.className = 'exercise-item';
+          li.innerHTML = `<div class="exercise-name">${name}</div>`;
+          list.appendChild(li);
+        });
+        day.appendChild(list); c.appendChild(day);
+      });
+    }
+    init();
+    </script>
+</body>
+</html>
+
+

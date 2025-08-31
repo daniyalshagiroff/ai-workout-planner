@@ -10,15 +10,22 @@
     <div class="form-card" style="max-width:960px;">
         <h2 id="title">Program</h2>
         <div id="week-view" class="form-field">Loading...</div>
+        <div id="follow-plan-section" style="margin-top: 2rem; text-align: center; display: none;">
+            <button id="follow-plan-btn" class="cta-button" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                Follow Plan
+            </button>
+        </div>
         <p class="muted-text"><a class="link" href="/static/ready-plans.html">Back to plans</a></p>
     </div>
     <script>
     function q(name){ return new URLSearchParams(location.search).get(name); }
     async function fetchJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error('Failed '+url); return r.json(); }
+    
     async function init(){
       const programName = q('program_name');
       if(!programName){ document.getElementById('week-view').textContent = 'No program selected'; return; }
       document.getElementById('title').textContent = programName;
+      
       // Show week 1 only via legacy export endpoint
       const data = await (await fetch(`/api/programs/${encodeURIComponent(programName)}/export`)).json();
       const c = document.getElementById('week-view');
@@ -37,7 +44,19 @@
         });
         day.appendChild(list); c.appendChild(day);
       });
+      
+      // Show follow plan button
+      document.getElementById('follow-plan-section').style.display = 'block';
     }
+    
+    // Handle follow plan button click
+    document.getElementById('follow-plan-btn').addEventListener('click', function() {
+      const programName = q('program_name');
+      if(programName) {
+        window.location.href = `/static/follow-plan.html?program_name=${encodeURIComponent(programName)}`;
+      }
+    });
+    
     init();
     </script>
 </body>

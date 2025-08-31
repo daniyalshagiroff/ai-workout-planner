@@ -218,6 +218,206 @@ async def api_programs_list():
         return [dict(row) for row in cur.fetchall()]
 
 
+# Get program weeks count
+@app.get("/api/programs/{program_name}/weeks")
+async def get_program_weeks(program_name: str):
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        # Find program by title (case-insensitive search)
+        cur.execute("SELECT id, title FROM program WHERE UPPER(title) = UPPER(?)", (program_name,))
+        prog = cur.fetchone()
+        if not prog:
+            # Try to find similar programs for debugging
+            cur.execute("SELECT title FROM program")
+            all_programs = [row["title"] for row in cur.fetchall()]
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Program '{program_name}' not found. Available programs: {all_programs}"
+            )
+        program_id = prog["id"]
+
+        # Get weeks count
+        cur.execute("SELECT COUNT(*) as weeks_count FROM program_week WHERE program_id = ?", (program_id,))
+        weeks_count = cur.fetchone()["weeks_count"]
+        
+        return {"program_name": prog["title"], "weeks_count": weeks_count}
+
+
+# Get specific week data
+@app.get("/api/programs/{program_name}/weeks/{week_number}")
+async def get_program_week(program_name: str, week_number: int):
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        # Find program by title (case-insensitive search)
+        cur.execute("SELECT id, title FROM program WHERE UPPER(title) = UPPER(?)", (program_name,))
+        prog = cur.fetchone()
+        if not prog:
+            # Try to find similar programs for debugging
+            cur.execute("SELECT title FROM program")
+            all_programs = [row["title"] for row in cur.fetchall()]
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Program '{program_name}' not found. Available programs: {all_programs}"
+            )
+        program_id = prog["id"]
+
+        # Get specific week
+        cur.execute("SELECT id FROM program_week WHERE program_id = ? AND week_number = ?", (program_id, week_number))
+        week = cur.fetchone()
+        if not week:
+            raise HTTPException(status_code=404, detail=f"Week {week_number} not found for this program")
+        week_id = week["id"]
+
+        # Days and exercises
+        cur.execute(
+            "SELECT id, day_of_week FROM program_day WHERE program_week_id = ? ORDER BY day_of_week",
+            (week_id,),
+        )
+        days_rows = cur.fetchall()
+        days_out = []
+        for d in days_rows:
+            cur.execute(
+                """
+                SELECT e.name
+                FROM program_day_exercise pde
+                JOIN exercise e ON e.id = pde.exercise_id
+                WHERE pde.program_day_id = ?
+                ORDER BY pde.position
+                """,
+                (d["id"],),
+            )
+            ex_names = [r[0] for r in cur.fetchall()]
+            days_out.append({
+                "day_number": d["day_of_week"],
+                "exercises": ex_names,
+            })
+
+        return {
+            "program_name": prog["title"],
+            "week_number": week_number,
+            "days": days_out,
+        }
+
+
+# User program management
+@app.post("/api/v2/user-programs")
+async def api_select_program(
+    user_id: int = Form(...),
+    program_id: int = Form(...),
+    notes: Optional[str] = Form(None)
+):
+    """Select a program for a user"""
+    with app_db.get_connection() as conn:
+        # Check if program exists
+        cur = conn.cursor()
+        cur.execute("SELECT id, title FROM program WHERE id = ?", (program_id,))
+        program = cur.fetchone()
+        if not program:
+            raise HTTPException(status_code=404, detail="Program not found")
+        
+        # Check if user already has this program
+        cur.execute("SELECT id FROM user_program WHERE user_id = ? AND program_id = ?", (user_id, program_id))
+        existing = cur.fetchone()
+        if existing:
+            raise HTTPException(status_code=400, detail="User already has this program selected")
+        
+        # Insert new user program with transaction
+        with app_db.transaction(conn) as cur:
+            cur.execute(
+                "INSERT INTO user_program (user_id, program_id, notes) VALUES (?, ?, ?)",
+                (user_id, program_id, notes)
+            )
+            user_program_id = cur.lastrowid
+        
+        return {
+            "id": user_program_id,
+            "user_id": user_id,
+            "program_id": program_id,
+            "program_title": program["title"],
+            "started_at": "CURRENT_TIMESTAMP",
+            "is_active": True,
+            "current_week": 1,
+            "current_day": 1
+        }
+
+
+@app.get("/api/v2/user-programs")
+async def api_get_user_programs(user_id: int):
+    """Get all programs selected by a user"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT up.id, up.user_id, up.program_id, up.started_at, up.is_active, 
+                   up.current_week, up.current_day, up.notes, up.created_at,
+                   p.title as program_title, p.description as program_description
+            FROM user_program up
+            JOIN program p ON p.id = up.program_id
+            WHERE up.user_id = ?
+            ORDER BY up.created_at DESC
+        """, (user_id,))
+        
+        programs = []
+        for row in cur.fetchall():
+            programs.append({
+                "id": row["id"],
+                "user_id": row["user_id"],
+                "program_id": row["program_id"],
+                "program_title": row["program_title"],
+                "program_description": row["program_description"],
+                "started_at": row["started_at"],
+                "is_active": bool(row["is_active"]),
+                "current_week": row["current_week"],
+                "current_day": row["current_day"],
+                "notes": row["notes"],
+                "created_at": row["created_at"]
+            })
+        
+        return programs
+
+
+@app.put("/api/v2/user-programs/{user_program_id}/activate")
+async def api_activate_program(user_program_id: int):
+    """Activate a user program (deactivate others)"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get user_id for this program
+        cur.execute("SELECT user_id FROM user_program WHERE id = ?", (user_program_id,))
+        user_program = cur.fetchone()
+        if not user_program:
+            raise HTTPException(status_code=404, detail="User program not found")
+        
+        user_id = user_program["user_id"]
+        
+        # Update with transaction
+        with app_db.transaction(conn) as cur:
+            # Deactivate all other programs for this user
+            cur.execute("UPDATE user_program SET is_active = 0 WHERE user_id = ?", (user_id,))
+            
+            # Activate the selected program
+            cur.execute("UPDATE user_program SET is_active = 1 WHERE id = ?", (user_program_id,))
+        
+        return {"message": "Program activated successfully"}
+
+
+@app.delete("/api/v2/user-programs/{user_program_id}")
+async def api_remove_user_program(user_program_id: int):
+    """Remove a program from user's selected programs"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Check if user program exists
+        cur.execute("SELECT id FROM user_program WHERE id = ?", (user_program_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User program not found")
+        
+        # Delete the user program with transaction
+        with app_db.transaction(conn) as cur:
+            cur.execute("DELETE FROM user_program WHERE id = ?", (user_program_id,))
+        
+        return {"message": "Program removed successfully"}
+
+
 # Legacy export endpoint (used by program-view.html)
 @app.get("/api/programs/{program_name}/export")
 async def export_program(program_name: str):

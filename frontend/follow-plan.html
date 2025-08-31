@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Follow Plan - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+        .tabs-container {
+            margin-top: 2rem;
+        }
+        
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+        
+        .tab-button {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        
+        .tab-button:hover {
+            background: var(--accent-glow);
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+        
+        .tab-button.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .week-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .week-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .week-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .days-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        
+        .day-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .day-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        .day-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .day-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .day-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .status-completed {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .exercises-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .exercise-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .exercise-item:last-child {
+            border-bottom: none;
+        }
+        
+        .exercise-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .exercise-name {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .start-workout-btn {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            width: 100%;
+        }
+        
+        .start-workout-btn:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            border-top-color: var(--accent-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #dc3545;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .tabs-header {
+                gap: 0.25rem;
+            }
+            
+            .tab-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .days-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .week-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:1200px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+            <h2 id="program-title">Follow Plan</h2>
+            <a href="javascript:history.back()" class="link" style="color: var(--text-secondary);">
+                ← Back to Program
+            </a>
+        </div>
+        
+        <div id="loading" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">Loading program data...</p>
+        </div>
+        
+        <div id="error" class="error-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <div class="tabs-container">
+                <div class="tabs-header" id="tabs-header">
+                    <!-- Tabs will be generated here -->
+                </div>
+                
+                <div id="tabs-content">
+                    <!-- Tab content will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function q(name) { 
+            return new URLSearchParams(location.search).get(name); 
+        }
+        
+        async function fetchJSON(url) { 
+            const r = await fetch(url); 
+            if (!r.ok) throw new Error('Failed ' + url); 
+            return r.json(); 
+        }
+        
+        let currentTab = 1;
+        let programData = {};
+        
+        async function init() {
+            const programName = q('program_name');
+            if (!programName) {
+                showError('No program selected');
+                return;
+            }
+            
+            try {
+                // Get program weeks count
+                const weeksData = await fetchJSON(`/api/programs/${encodeURIComponent(programName)}/weeks`);
+                programData = weeksData;
+                
+                document.getElementById('program-title').textContent = weeksData.program_name;
+                
+                if (weeksData.weeks_count === 0) {
+                    showError('No weeks found for this program');
+                    return;
+                }
+                
+                // Generate tabs
+                generateTabs(weeksData.weeks_count);
+                
+                // Load first tab
+                await loadTabContent(1);
+                
+                // Show content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+            } catch (error) {
+                showError('Failed to load program data: ' + error.message);
+            }
+        }
+        
+        function generateTabs(weeksCount) {
+            const tabsHeader = document.getElementById('tabs-header');
+            tabsHeader.innerHTML = '';
+            
+            for (let i = 1; i <= weeksCount; i++) {
+                const tabButton = document.createElement('button');
+                tabButton.className = 'tab-button' + (i === 1 ? ' active' : '');
+                tabButton.textContent = `Week ${i}`;
+                tabButton.onclick = () => switchTab(i);
+                tabsHeader.appendChild(tabButton);
+            }
+        }
+        
+        async function switchTab(weekNumber) {
+            if (currentTab === weekNumber) return;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach((btn, index) => {
+                btn.classList.toggle('active', index + 1 === weekNumber);
+            });
+            
+            currentTab = weekNumber;
+            await loadTabContent(weekNumber);
+        }
+        
+        async function loadTabContent(weekNumber) {
+            const tabsContent = document.getElementById('tabs-content');
+            tabsContent.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="loading-spinner"></div></div>';
+            
+            try {
+                const weekData = await fetchJSON(`/api/programs/${encodeURIComponent(programData.program_name)}/weeks/${weekNumber}`);
+                renderWeekContent(weekData);
+            } catch (error) {
+                tabsContent.innerHTML = `<div class="error-message">Failed to load week ${weekNumber}: ${error.message}</div>`;
+            }
+        }
+        
+        function renderWeekContent(weekData) {
+            const tabsContent = document.getElementById('tabs-content');
+            
+            const content = `
+                <div class="tab-content active">
+                    <div class="week-header">
+                        <div class="week-title">Week ${weekData.week_number}</div>
+                        <div class="week-progress">
+                            <span>Progress</span>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="days-grid">
+                        ${weekData.days.map(day => `
+                            <div class="day-card">
+                                <div class="day-header">
+                                    <div class="day-title">Day ${day.day_number}</div>
+                                    <div class="day-status status-pending">Pending</div>
+                                </div>
+                                
+                                <ul class="exercises-list">
+                                    ${day.exercises.map((exercise, index) => `
+                                        <li class="exercise-item">
+                                            <div class="exercise-icon">${index + 1}</div>
+                                            <div class="exercise-name">${exercise}</div>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                                
+                                <button class="start-workout-btn" onclick="startWorkout(${weekData.week_number}, ${day.day_number})">
+                                    Start Workout
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            tabsContent.innerHTML = content;
+        }
+        
+        function startWorkout(weekNumber, dayNumber) {
+            // TODO: Implement workout start functionality
+            alert(`Starting workout for Week ${weekNumber}, Day ${dayNumber}`);
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+        
+        init();
+    </script>
+</body>
+</html>

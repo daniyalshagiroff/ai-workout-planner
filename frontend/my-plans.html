@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Plans - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+        .plans-container {
+            margin-top: 2rem;
+        }
+        
+        .plans-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        }
+        
+        .plan-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .plan-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 30px var(--accent-glow);
+            transform: translateY(-4px);
+        }
+        
+        .plan-card.active {
+            border-color: var(--accent-primary);
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(255, 62, 62, 0.05) 100%);
+        }
+        
+        .plan-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        
+        .plan-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .plan-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+        
+        .plan-status {
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-active {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .status-inactive {
+            background: rgba(108, 117, 125, 0.2);
+            color: #6c757d;
+            border: 1px solid rgba(108, 117, 125, 0.3);
+        }
+        
+        .plan-progress {
+            margin: 1.5rem 0;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        
+        .progress-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .progress-percentage {
+            color: var(--accent-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .plan-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .plan-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .btn-danger {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-danger:hover {
+            background: rgba(220, 53, 69, 0.2);
+            border-color: #dc3545;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        
+        .empty-description {
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border-color);
+            border-radius: 50%;
+            border-top-color: var(--accent-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #dc3545;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .success-message {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            color: #28a745;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .plans-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .plan-actions {
+                flex-direction: column;
+            }
+            
+            .plan-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:1200px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+            <h2>My Plans</h2>
+            <a href="/static/ready-plans.html" class="link" style="color: var(--text-secondary);">
+                Browse More Plans →
+            </a>
+        </div>
+        
+        <div id="loading" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">Loading your plans...</p>
+        </div>
+        
+        <div id="error" class="error-message" style="display: none;"></div>
+        <div id="success" class="success-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <div class="plans-container">
+                <div id="plans-grid" class="plans-grid">
+                    <!-- Plans will be generated here -->
+                </div>
+            </div>
+        </div>
+        
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <div class="empty-icon">💪</div>
+            <div class="empty-title">No Plans Selected</div>
+            <div class="empty-description">
+                You haven't selected any workout plans yet. Browse our collection of ready-made plans 
+                or create your own with AI assistance.
+            </div>
+            <a href="/static/ready-plans.html" class="cta-button">
+                Browse Plans
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        let currentUser = null;
+        
+        async function init() {
+            try {
+                // Get current user (for demo, using user_id = 1)
+                // In real app, this would come from authentication
+                currentUser = { id: 1 };
+                
+                await loadUserPlans();
+                
+            } catch (error) {
+                showError('Failed to load plans: ' + error.message);
+            }
+        }
+        
+        async function loadUserPlans() {
+            try {
+                const response = await fetch(`/api/v2/user-programs?user_id=${currentUser.id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load plans');
+                }
+                
+                const plans = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                if (plans.length === 0) {
+                    document.getElementById('empty-state').style.display = 'block';
+                } else {
+                    document.getElementById('content').style.display = 'block';
+                    renderPlans(plans);
+                }
+                
+            } catch (error) {
+                showError('Failed to load plans: ' + error.message);
+            }
+        }
+        
+        function renderPlans(plans) {
+            const plansGrid = document.getElementById('plans-grid');
+            plansGrid.innerHTML = '';
+            
+            plans.forEach(plan => {
+                const planCard = createPlanCard(plan);
+                plansGrid.appendChild(planCard);
+            });
+        }
+        
+        function createPlanCard(plan) {
+            const card = document.createElement('div');
+            card.className = `plan-card ${plan.is_active ? 'active' : ''}`;
+            
+            // Calculate progress (simplified - in real app would calculate from workouts)
+            const progress = Math.min((plan.current_week - 1) * 16.67, 100); // 6 weeks = 100%
+            
+            const startedDate = new Date(plan.started_at).toLocaleDateString();
+            
+            card.innerHTML = `
+                <div class="plan-header">
+                    <div>
+                        <div class="plan-title">${plan.program_title}</div>
+                        <div class="plan-description">${plan.program_description || 'No description available'}</div>
+                    </div>
+                    <div class="plan-status ${plan.is_active ? 'status-active' : 'status-inactive'}">
+                        ${plan.is_active ? 'Active' : 'Inactive'}
+                    </div>
+                </div>
+                
+                <div class="plan-progress">
+                    <div class="progress-header">
+                        <span class="progress-label">Progress</span>
+                        <span class="progress-percentage">${Math.round(progress)}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+                
+                <div class="plan-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">${plan.current_week}</div>
+                        <div class="stat-label">Current Week</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${plan.current_day}</div>
+                        <div class="stat-label">Current Day</div>
+                    </div>
+                </div>
+                
+                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Started: ${startedDate}
+                </div>
+                
+                <div class="plan-actions">
+                    <button class="btn-primary" onclick="continuePlan('${plan.program_title}')">
+                        Continue Plan
+                    </button>
+                    ${!plan.is_active ? `
+                        <button class="btn-secondary" onclick="activatePlan(${plan.id})">
+                            Activate
+                        </button>
+                    ` : ''}
+                    <button class="btn-danger" onclick="removePlan(${plan.id})">
+                        Remove
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function continuePlan(programTitle) {
+            window.location.href = `/static/follow-plan.html?program_name=${encodeURIComponent(programTitle)}`;
+        }
+        
+        async function activatePlan(userProgramId) {
+            try {
+                const response = await fetch(`/api/v2/user-programs/${userProgramId}/activate`, {
+                    method: 'PUT'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to activate plan');
+                }
+                
+                showSuccess('Plan activated successfully!');
+                await loadUserPlans(); // Reload to update UI
+                
+            } catch (error) {
+                showError('Failed to activate plan: ' + error.message);
+            }
+        }
+        
+        async function removePlan(userProgramId) {
+            if (!confirm('Are you sure you want to remove this plan? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v2/user-programs/${userProgramId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to remove plan');
+                }
+                
+                showSuccess('Plan removed successfully!');
+                await loadUserPlans(); // Reload to update UI
+                
+            } catch (error) {
+                showError('Failed to remove plan: ' + error.message);
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            document.getElementById('success').textContent = message;
+            document.getElementById('success').style.display = 'block';
+            
+            setTimeout(() => {
+                document.getElementById('success').style.display = 'none';
+            }, 3000);
+        }
+        
+        init();
+    </script>
+</body>
+</html>

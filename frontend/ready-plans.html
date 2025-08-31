@@ -5,18 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ready-made Plans - IRON AI</title>
     <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+        .program-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .program-arrow {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .program-arrow:hover {
+            color: var(--accent-primary);
+            transform: translateX(4px);
+        }
+    </style>
 </head>
 <body class="form-page">
     <div class="form-card" style="max-width:960px;">
         <h2>Choose a Ready-made Plan</h2>
-        <div id="plans" class="form-field">Loading...</div>
+        <div id="loading" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+            Loading available plans...
+        </div>
+        <div id="plans" class="form-field" style="display: none;"></div>
+        <div id="error" style="color: #dc3545; padding: 1rem; display: none;"></div>
         <p class="muted-text"><a class="link" href="/">Back to home</a></p>
     </div>
     <script>
     function renderPlans(items) {
-      const c = document.getElementById('plans');
-      if (!items.length) { c.textContent = 'No programs found'; return; }
-      c.innerHTML = '';
+      const loading = document.getElementById('loading');
+      const plans = document.getElementById('plans');
+      const error = document.getElementById('error');
+      
+      // Hide loading and error
+      loading.style.display = 'none';
+      error.style.display = 'none';
+      
+      if (!items.length) { 
+        plans.style.display = 'block';
+        plans.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-secondary);">No programs found</div>'; 
+        return; 
+      }
+      
+      plans.style.display = 'block';
+      plans.innerHTML = '';
       items.forEach(p => {
         const card = document.createElement('div');
         card.className = 'program-card';
@@ -28,17 +81,72 @@
               <div class="program-description">${p.description || ''}</div>
             </div>
           </div>
-          <div class="program-arrow">→</div>
+          <div class="program-actions">
+            <button class="btn-secondary" onclick="event.stopPropagation(); selectPlan(${p.id}, '${p.title}')">
+              Select Plan
+            </button>
+            <div class="program-arrow" onclick="viewPlan('${p.title}')">→</div>
+          </div>
         `;
-        card.addEventListener('click', () => {
-          window.location.href = `/static/program-view.html?program_name=${encodeURIComponent(p.title)}`;
-        });
         c.appendChild(card);
       });
     }
+    
+    async function selectPlan(programId, programTitle) {
+      try {
+        // For demo, using user_id = 1
+        const formData = new FormData();
+        formData.append('user_id', '1');
+        formData.append('program_id', programId);
+        
+        const response = await fetch('/api/v2/user-programs', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || 'Failed to select plan');
+        }
+        
+        const result = await response.json();
+        alert(`Plan "${programTitle}" selected successfully! You can now continue with it from the main page.`);
+        
+      } catch (error) {
+        console.error('Error selecting plan:', error);
+        alert('Failed to select plan: ' + error.message);
+      }
+    }
+    
+    function viewPlan(programTitle) {
+      window.location.href = `/static/program-view.html?program_name=${encodeURIComponent(programTitle)}`;
+    }
+    
+    async function loadPrograms() {
+      try {
+        const response = await fetch('/api/v2/programs/list');
+        if (!response.ok) {
+          throw new Error('Failed to load programs');
+        }
+        const programs = await response.json();
+        renderPlans(programs);
+      } catch (error) {
+        console.error('Error loading programs:', error);
+        const errorDiv = document.getElementById('error');
+        const loading = document.getElementById('loading');
+        loading.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Failed to load programs. Please try again later.';
+        
+        // Fallback to static data if API fails
+        setTimeout(() => {
+          renderPlans([{ id: 3, title: 'FOUNDATIONAL PLAN', description: '6-week foundational strength/hypertrophy base' }]);
+        }, 2000);
+      }
+    }
+    
     (function init(){
-      // For now, show the foundational plan sourced from DB by name via export endpoint on next page
-      renderPlans([{ id: 'foundational', title: 'FOUNDATIONAL PLAN', description: '6-week foundational strength/hypertrophy base' }]);
+      loadPrograms();
     })();
     </script>
 </body>

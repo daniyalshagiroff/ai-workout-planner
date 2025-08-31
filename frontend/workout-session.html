@@ -414,10 +414,15 @@
         }
         
         function createSetCard(set, exerciseId) {
-            const isCompleted = completedSets.has(set.id);
+            const isCompleted = completedSets.has(set.id) || set.actual_reps !== null;
             const statusClass = isCompleted ? 'completed' : '';
             const statusText = isCompleted ? 'Completed' : 'Pending';
             const statusClass2 = isCompleted ? 'status-completed' : 'status-pending';
+            
+            // If set was already logged, add it to completed sets
+            if (set.actual_reps !== null) {
+                completedSets.add(set.id);
+            }
             
             return `
                 <div class="set-card ${statusClass}" id="set-${set.id}">
@@ -541,7 +546,7 @@
         }
         
         async function editSet(setId) {
-            // For now, just allow re-logging the set
+            // Allow re-logging the set
             completedSets.delete(setId);
             
             const setCard = document.getElementById(`set-${setId}`);
@@ -559,6 +564,12 @@
             const status = setCard.querySelector('.set-status');
             status.textContent = 'Pending';
             status.className = 'set-status status-pending';
+            
+            // Clear the input values
+            const repsInput = document.getElementById(`reps-${setId}`);
+            const weightInput = document.getElementById(`weight-${setId}`);
+            if (repsInput) repsInput.value = '';
+            if (weightInput) weightInput.value = '';
         }
         
         async function finishWorkout() {

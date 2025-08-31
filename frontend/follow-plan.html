@@ -354,14 +354,45 @@
             
             try {
                 const weekData = await fetchJSON(`/api/programs/${encodeURIComponent(programData.program_name)}/weeks/${weekNumber}`);
-                renderWeekContent(weekData);
+                await renderWeekContent(weekData);
             } catch (error) {
                 tabsContent.innerHTML = `<div class="error-message">Failed to load week ${weekNumber}: ${error.message}</div>`;
             }
         }
         
-        function renderWeekContent(weekData) {
+        async function renderWeekContent(weekData) {
             const tabsContent = document.getElementById('tabs-content');
+            
+            // Check status for each day
+            const dayStatuses = await Promise.all(
+                weekData.days.map(async (day) => {
+                    try {
+                        const response = await fetch(`/api/v2/programs/3/weeks/${weekData.week_number}/days/${day.day_number}/status?user_id=1`);
+                        if (response.ok) {
+                            const status = await response.json();
+                            return {
+                                dayNumber: day.day_number,
+                                completed: status.completed,
+                                totalSets: status.total_sets,
+                                completedSets: status.completed_sets
+                            };
+                        }
+                    } catch (error) {
+                        console.error('Error checking day status:', error);
+                    }
+                    return {
+                        dayNumber: day.day_number,
+                        completed: false,
+                        totalSets: 0,
+                        completedSets: 0
+                    };
+                })
+            );
+            
+            // Calculate week progress
+            const totalDays = weekData.days.length;
+            const completedDays = dayStatuses.filter(status => status.completed).length;
+            const weekProgress = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
             
             const content = `
                 <div class="tab-content active">
@@ -370,34 +401,41 @@
                         <div class="week-progress">
                             <span>Progress</span>
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: 0%"></div>
+                                <div class="progress-fill" style="width: ${weekProgress}%"></div>
                             </div>
-                            <span>0%</span>
+                            <span>${weekProgress}%</span>
                         </div>
                     </div>
                     
                     <div class="days-grid">
-                        ${weekData.days.map(day => `
-                            <div class="day-card">
-                                <div class="day-header">
-                                    <div class="day-title">Day ${day.day_number}</div>
-                                    <div class="day-status status-pending">Pending</div>
+                        ${weekData.days.map(day => {
+                            const dayStatus = dayStatuses.find(status => status.dayNumber === day.day_number);
+                            const isCompleted = dayStatus ? dayStatus.completed : false;
+                            const statusClass = isCompleted ? 'status-completed' : 'status-pending';
+                            const statusText = isCompleted ? 'Completed' : 'Pending';
+                            
+                            return `
+                                <div class="day-card">
+                                    <div class="day-header">
+                                        <div class="day-title">Day ${day.day_number}</div>
+                                        <div class="day-status ${statusClass}">${statusText}</div>
+                                    </div>
+                                    
+                                    <ul class="exercises-list">
+                                        ${day.exercises.map((exercise, index) => `
+                                            <li class="exercise-item">
+                                                <div class="exercise-icon">${index + 1}</div>
+                                                <div class="exercise-name">${exercise}</div>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                    
+                                    <button class="start-workout-btn" onclick="startWorkout(${weekData.week_number}, ${day.day_number})">
+                                        ${isCompleted ? 'Continue Workout' : 'Start Workout'}
+                                    </button>
                                 </div>
-                                
-                                <ul class="exercises-list">
-                                    ${day.exercises.map((exercise, index) => `
-                                        <li class="exercise-item">
-                                            <div class="exercise-icon">${index + 1}</div>
-                                            <div class="exercise-name">${exercise}</div>
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                                
-                                <button class="start-workout-btn" onclick="startWorkout(${weekData.week_number}, ${day.day_number})">
-                                    Start Workout
-                                </button>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;

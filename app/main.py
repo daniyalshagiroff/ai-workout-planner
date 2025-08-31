@@ -608,6 +608,63 @@ async def api_remove_user_program(user_program_id: int):
         return {"message": "Program removed successfully"}
 
 
+@app.get("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_number}/status")
+async def api_get_day_status(program_id: int, week_number: int, day_number: int, user_id: int = 1):
+    """Get completion status for a specific day"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Find the program day
+        cur.execute("""
+            SELECT pd.id
+            FROM program_day pd
+            JOIN program_week pw ON pw.id = pd.program_week_id
+            WHERE pw.program_id = ? AND pw.week_number = ? AND pd.day_of_week = ?
+        """, (program_id, week_number, day_number))
+        
+        day = cur.fetchone()
+        if not day:
+            raise HTTPException(status_code=404, detail="Day not found")
+        
+        # Get all planned sets for this day
+        cur.execute("""
+            SELECT ps.id
+            FROM planned_set ps
+            JOIN program_day_exercise pde ON pde.id = ps.program_day_exercise_id
+            WHERE pde.program_day_id = ?
+        """, (day["id"],))
+        
+        planned_sets = cur.fetchall()
+        total_sets = len(planned_sets)
+        
+        if total_sets == 0:
+            return {"completed": True, "total_sets": 0, "completed_sets": 0}
+        
+        # Get completed sets for this day
+        cur.execute("""
+            SELECT COUNT(*) as completed_count
+            FROM workout_set ws
+            JOIN planned_set ps ON ps.id = ws.planned_set_id
+            JOIN program_day_exercise pde ON pde.id = ps.program_day_exercise_id
+            JOIN workout w ON w.id = (
+                SELECT we.workout_id 
+                FROM workout_exercise we 
+                WHERE we.program_day_exercise_id = pde.id
+                LIMIT 1
+            )
+            WHERE pde.program_day_id = ? AND w.owner_user_id = ?
+        """, (day["id"], user_id))
+        
+        completed_result = cur.fetchone()
+        completed_sets = completed_result["completed_count"] if completed_result else 0
+        
+        return {
+            "completed": completed_sets >= total_sets,
+            "total_sets": total_sets,
+            "completed_sets": completed_sets
+        }
+
+
 # Legacy export endpoint (used by program-view.html)
 @app.get("/api/programs/{program_name}/export")
 async def export_program(program_name: str):

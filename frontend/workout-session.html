@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workout Session - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+        .workout-header {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--text-primary);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .workout-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .workout-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .exercise-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .exercise-section:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        
+        .exercise-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .exercise-position {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .sets-container {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .set-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .set-card:hover {
+            border-color: var(--accent-primary);
+            background: rgba(255, 62, 62, 0.05);
+        }
+        
+        .set-card.completed {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+        
+        .set-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .set-number {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+        
+        .set-status {
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+        
+        .status-completed {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+        }
+        
+        .planned-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+        }
+        
+        .planned-item {
+            text-align: center;
+        }
+        
+        .planned-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+        
+        .planned-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .input-control {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .input-control:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+        
+        .set-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary:disabled {
+            background: var(--border-color);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .workout-actions {
+            position: sticky;
+            bottom: 0;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            padding: 1.5rem;
+            margin: 2rem -2rem -2rem -2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        .btn-finish {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-finish:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            border-top-color: var(--accent-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #dc3545;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .success-message {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            color: #28a745;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .planned-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .set-actions {
+                flex-direction: column;
+            }
+            
+            .workout-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body class="form-page">
+    <div class="form-card" style="max-width:800px;">
+        <div id="loading" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">Loading workout session...</p>
+        </div>
+        
+        <div id="error" class="error-message" style="display: none;"></div>
+        <div id="success" class="success-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <div class="workout-header">
+                <div class="workout-title" id="workout-title">Workout Session</div>
+                <div class="workout-subtitle" id="workout-subtitle">Loading...</div>
+            </div>
+            
+            <div id="exercises-container">
+                <!-- Exercises will be generated here -->
+            </div>
+            
+            <div class="workout-actions">
+                <button class="btn-finish" onclick="finishWorkout()">
+                    Finish Workout
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentWorkout = null;
+        let exercises = [];
+        let completedSets = new Set();
+        
+        async function init() {
+            try {
+                // Get workout ID from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const workoutId = urlParams.get('workout_id');
+                
+                if (!workoutId) {
+                    showError('No workout ID provided. Please start a workout from the plan page.');
+                    return;
+                }
+                
+                await loadWorkoutSession(workoutId);
+                
+            } catch (error) {
+                console.error('Error loading workout session:', error);
+                showError('Failed to load workout session: ' + error.message);
+            }
+        }
+        
+        async function loadWorkoutSession(workoutId) {
+            try {
+                const response = await fetch(`/api/v2/workouts/${workoutId}/session`);
+                if (!response.ok) {
+                    throw new Error('Failed to load workout session');
+                }
+                
+                const data = await response.json();
+                currentWorkout = data.workout;
+                exercises = data.exercises;
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+                updateWorkoutHeader();
+                renderExercises();
+                
+            } catch (error) {
+                showError('Failed to load workout session: ' + error.message);
+            }
+        }
+        
+        function updateWorkoutHeader() {
+            document.getElementById('workout-title').textContent = currentWorkout.program_title;
+            document.getElementById('workout-subtitle').textContent = 
+                `Week ${currentWorkout.week_number}, Day ${currentWorkout.day_of_week}`;
+        }
+        
+        function renderExercises() {
+            const container = document.getElementById('exercises-container');
+            container.innerHTML = '';
+            
+            exercises.forEach(exercise => {
+                const exerciseSection = createExerciseSection(exercise);
+                container.appendChild(exerciseSection);
+            });
+        }
+        
+        function createExerciseSection(exercise) {
+            const section = document.createElement('div');
+            section.className = 'exercise-section';
+            
+            const setsHtml = exercise.sets.map(set => createSetCard(set, exercise.id)).join('');
+            
+            section.innerHTML = `
+                <div class="exercise-header">
+                    <div class="exercise-name">${exercise.exercise_name}</div>
+                    <div class="exercise-position">Position ${exercise.position}</div>
+                </div>
+                <div class="sets-container">
+                    ${setsHtml}
+                </div>
+            `;
+            
+            return section;
+        }
+        
+        function createSetCard(set, exerciseId) {
+            const isCompleted = completedSets.has(set.id);
+            const statusClass = isCompleted ? 'completed' : '';
+            const statusText = isCompleted ? 'Completed' : 'Pending';
+            const statusClass2 = isCompleted ? 'status-completed' : 'status-pending';
+            
+            return `
+                <div class="set-card ${statusClass}" id="set-${set.id}">
+                    <div class="set-header">
+                        <div class="set-number">Set ${set.set_number}</div>
+                        <div class="set-status ${statusClass2}">${statusText}</div>
+                    </div>
+                    
+                    <div class="planned-info">
+                        <div class="planned-item">
+                            <div class="planned-label">Planned Reps</div>
+                            <div class="planned-value">${set.planned_reps}</div>
+                        </div>
+                        <div class="planned-item">
+                            <div class="planned-label">Planned Weight</div>
+                            <div class="planned-value">${set.planned_weight || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label class="input-label">Actual Reps</label>
+                            <input type="number" class="input-control" id="reps-${set.id}" 
+                                   placeholder="Enter reps" min="1" value="${set.actual_reps || ''}">
+                        </div>
+                        <div class="input-field">
+                            <label class="input-label">Actual Weight (kg)</label>
+                            <input type="number" class="input-control" id="weight-${set.id}" 
+                                   placeholder="Enter weight" min="0" step="0.5" value="${set.actual_weight || ''}">
+                        </div>
+                    </div>
+                    
+                    <div class="set-actions">
+                        <button class="btn-primary" onclick="logSet(${set.id}, ${exerciseId})" 
+                                ${isCompleted ? 'disabled' : ''}>
+                            ${isCompleted ? 'Completed' : 'Log Set'}
+                        </button>
+                        ${isCompleted ? `
+                            <button class="btn-secondary" onclick="editSet(${set.id})">
+                                Edit
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function logSet(setId, exerciseId) {
+            try {
+                const repsInput = document.getElementById(`reps-${setId}`);
+                const weightInput = document.getElementById(`weight-${setId}`);
+                
+                const reps = parseInt(repsInput.value);
+                const weight = weightInput.value ? parseFloat(weightInput.value) : null;
+                
+                if (!reps || reps < 1) {
+                    alert('Please enter valid reps');
+                    return;
+                }
+                
+                // Real API call
+                const formData = new FormData();
+                formData.append('reps', reps);
+                if (weight !== null) {
+                    formData.append('weight', weight);
+                }
+                
+                console.log('Sending API request to log set:', {
+                    workoutId: currentWorkout.id,
+                    setId: setId,
+                    reps: reps,
+                    weight: weight
+                });
+                
+                const response = await fetch(`/api/v2/workouts/${currentWorkout.id}/sets/${setId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('API Response:', result);
+                
+                completedSets.add(setId);
+                showSuccess('Set logged successfully!');
+                updateSetCardCompleted(setId);
+                
+            } catch (error) {
+                console.error('Error logging set:', error);
+                showError('Failed to log set: ' + error.message);
+            }
+        }
+        
+        function updateSetCardCompleted(setId) {
+            // Update the set card
+            const setCard = document.getElementById(`set-${setId}`);
+            setCard.className = 'set-card completed';
+            
+            // Update the button
+            const button = setCard.querySelector('.btn-primary');
+            button.textContent = 'Completed';
+            button.disabled = true;
+            
+            // Add edit button
+            const actions = setCard.querySelector('.set-actions');
+            const editButton = document.createElement('button');
+            editButton.className = 'btn-secondary';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editSet(setId);
+            actions.appendChild(editButton);
+            
+            // Update status
+            const status = setCard.querySelector('.set-status');
+            status.textContent = 'Completed';
+            status.className = 'set-status status-completed';
+        }
+        
+        async function editSet(setId) {
+            // For now, just allow re-logging the set
+            completedSets.delete(setId);
+            
+            const setCard = document.getElementById(`set-${setId}`);
+            setCard.className = 'set-card';
+            
+            const button = setCard.querySelector('.btn-primary');
+            button.textContent = 'Log Set';
+            button.disabled = false;
+            
+            const editButton = setCard.querySelector('.btn-secondary');
+            if (editButton) {
+                editButton.remove();
+            }
+            
+            const status = setCard.querySelector('.set-status');
+            status.textContent = 'Pending';
+            status.className = 'set-status status-pending';
+        }
+        
+        async function finishWorkout() {
+            if (!confirm('Are you sure you want to finish this workout?')) {
+                return;
+            }
+            
+            try {
+                console.log('Sending API request to finish workout:', currentWorkout.id);
+                
+                // Real API call
+                const response = await fetch(`/api/v2/workouts/${currentWorkout.id}/finish`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('API Response:', result);
+                
+                showSuccess('Workout finished successfully!');
+                setTimeout(() => {
+                    window.location.href = '/static/my-plans.html';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error finishing workout:', error);
+                showError('Failed to finish workout: ' + error.message);
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            document.getElementById('success').textContent = message;
+            document.getElementById('success').style.display = 'block';
+            
+            setTimeout(() => {
+                document.getElementById('success').style.display = 'none';
+            }, 3000);
+        }
+        
+        init();
+    </script>
+</body>
+</html>

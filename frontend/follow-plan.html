@@ -405,9 +405,43 @@
             tabsContent.innerHTML = content;
         }
         
-        function startWorkout(weekNumber, dayNumber) {
-            // TODO: Implement workout start functionality
-            alert(`Starting workout for Week ${weekNumber}, Day ${dayNumber}`);
+        async function startWorkout(weekNumber, dayNumber) {
+            try {
+                console.log('Starting workout for Week', weekNumber, 'Day', dayNumber);
+                
+                const formData = new FormData();
+                formData.append('owner_user_id', '1');
+                formData.append('program_id', '3'); // FOUNDATIONAL PLAN
+                formData.append('week_number', weekNumber);
+                formData.append('day_of_week', dayNumber);
+                
+                console.log('Sending API request to start workout:', {
+                    owner_user_id: 1,
+                    program_id: 3,
+                    week_number: weekNumber,
+                    day_of_week: dayNumber
+                });
+                
+                const response = await fetch('/api/v2/workouts/start', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('API Response:', result);
+                
+                window.location.href = `/static/workout-session.html?workout_id=${result.workout_id}`;
+                
+            } catch (error) {
+                console.error('Error starting workout:', error);
+                showError('Failed to start workout: ' + error.message);
+            }
         }
         
         function showError(message) {

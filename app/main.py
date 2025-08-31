@@ -165,11 +165,69 @@ async def api_add_planned_set(
 
 # v2 WORKOUTS
 @app.post("/api/v2/workouts/start")
-async def api_start_workout(owner_user_id: int, program_id: int, week_number: int, day_of_week: int):
-    try:
-        return services.start_workout(owner_user_id, program_id, week_number, day_of_week)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+async def api_start_workout(
+    owner_user_id: int = Form(...),
+    program_id: int = Form(...),
+    week_number: int = Form(...),
+    day_of_week: int = Form(...)
+):
+    """Start a new workout session"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Check if program exists
+        cur.execute("SELECT id, title FROM program WHERE id = ?", (program_id,))
+        program = cur.fetchone()
+        if not program:
+            raise HTTPException(status_code=404, detail="Program not found")
+        
+        # Check if week exists
+        cur.execute("SELECT id FROM program_week WHERE program_id = ? AND week_number = ?", (program_id, week_number))
+        week = cur.fetchone()
+        if not week:
+            raise HTTPException(status_code=404, detail="Week not found")
+        
+        # Check if day exists
+        cur.execute("SELECT id FROM program_day WHERE program_week_id = ? AND day_of_week = ?", (week["id"], day_of_week))
+        day = cur.fetchone()
+        if not day:
+            raise HTTPException(status_code=404, detail="Day not found")
+        
+        # Check if workout already exists for this day
+        cur.execute("SELECT id FROM workout WHERE owner_user_id = ? AND program_day_id = ?", 
+                   (owner_user_id, day["id"]))
+        existing = cur.fetchone()
+        if existing:
+            # Return existing workout
+            return {"workout_id": existing["id"], "message": "Workout already exists"}
+        
+        # Get exercises for this day first
+        cur.execute("""
+            SELECT pde.id, pde.exercise_id, pde.position
+            FROM program_day_exercise pde
+            WHERE pde.program_day_id = ?
+            ORDER BY pde.position
+        """, (day["id"],))
+        
+        exercises = cur.fetchall()
+        
+        # Create new workout with transaction
+        with app_db.transaction(conn) as cur:
+            # Create workout
+            cur.execute("""
+                INSERT INTO workout (owner_user_id, program_day_id, started_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            """, (owner_user_id, day["id"]))
+            workout_id = cur.lastrowid
+            
+            # Create workout exercises
+            for exercise in exercises:
+                cur.execute("""
+                    INSERT INTO workout_exercise (workout_id, program_day_exercise_id, position)
+                    VALUES (?, ?, ?)
+                """, (workout_id, exercise["id"], exercise["position"]))
+        
+        return {"workout_id": workout_id, "message": "Workout started successfully"}
 
 
 @app.post("/api/v2/workouts/{workout_id}/log-set")
@@ -178,6 +236,138 @@ async def api_log_set(workout_id: int, position: int, planned_set_id: int, set_n
         return services.log_workout_set(workout_id, position, planned_set_id, set_number, reps, weight, rpe, rest_seconds)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/v2/workouts/{workout_id}/session")
+async def api_get_workout_session(workout_id: int):
+    """Get workout session data with exercises and planned sets"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Get workout info
+        cur.execute("""
+            SELECT w.id, w.owner_user_id, w.program_day_id, w.started_at,
+                   p.title as program_title, pw.week_number, pd.day_of_week
+            FROM workout w
+            JOIN program_day pd ON pd.id = w.program_day_id
+            JOIN program_week pw ON pw.id = pd.program_week_id
+            JOIN program p ON p.id = pw.program_id
+            WHERE w.id = ?
+        """, (workout_id,))
+        
+        workout = cur.fetchone()
+        if not workout:
+            raise HTTPException(status_code=404, detail="Workout not found")
+        
+        # Get exercises with their planned sets
+        cur.execute("""
+            SELECT we.id, we.position, e.name as exercise_name,
+                   pde.id as program_day_exercise_id
+            FROM workout_exercise we
+            JOIN program_day_exercise pde ON pde.id = we.program_day_exercise_id
+            JOIN exercise e ON e.id = pde.exercise_id
+            WHERE we.workout_id = ?
+            ORDER BY we.position
+        """, (workout_id,))
+        
+        exercises = []
+        for exercise_row in cur.fetchall():
+            # Get planned sets for this exercise
+            cur.execute("""
+                SELECT ps.id, ps.set_number, ps.reps as planned_reps, ps.weight as planned_weight
+                FROM planned_set ps
+                WHERE ps.program_day_exercise_id = ?
+                ORDER BY ps.set_number
+            """, (exercise_row["program_day_exercise_id"],))
+            
+            sets = []
+            for set_row in cur.fetchall():
+                # Check if this set has been logged
+                cur.execute("""
+                    SELECT ws.reps as actual_reps, ws.weight as actual_weight
+                    FROM workout_set ws
+                    WHERE ws.planned_set_id = ?
+                """, (set_row["id"],))
+                
+                actual_set = cur.fetchone()
+                
+                sets.append({
+                    "id": set_row["id"],
+                    "set_number": set_row["set_number"],
+                    "planned_reps": set_row["planned_reps"],
+                    "planned_weight": set_row["planned_weight"],
+                    "actual_reps": actual_set["actual_reps"] if actual_set else None,
+                    "actual_weight": actual_set["actual_weight"] if actual_set else None
+                })
+            
+            exercises.append({
+                "id": exercise_row["id"],
+                "position": exercise_row["position"],
+                "exercise_name": exercise_row["exercise_name"],
+                "sets": sets
+            })
+        
+        return {
+            "workout": dict(workout),
+            "exercises": exercises
+        }
+
+
+@app.post("/api/v2/workouts/{workout_id}/sets/{planned_set_id}")
+async def api_log_set(
+    workout_id: int, 
+    planned_set_id: int,
+    reps: int = Form(...),
+    weight: Optional[float] = Form(None)
+):
+    """Log a workout set"""
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        
+        # Verify workout exists
+        cur.execute("SELECT id FROM workout WHERE id = ?", (workout_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Workout not found")
+        
+        # Verify planned set exists
+        cur.execute("SELECT id FROM planned_set WHERE id = ?", (planned_set_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Planned set not found")
+        
+        # Get workout_exercise_id for this planned_set_id
+        cur.execute("""
+            SELECT we.id as workout_exercise_id, ps.set_number
+            FROM workout_exercise we
+            JOIN program_day_exercise pde ON pde.id = we.program_day_exercise_id
+            JOIN planned_set ps ON ps.program_day_exercise_id = pde.id
+            WHERE we.workout_id = ? AND ps.id = ?
+        """, (workout_id, planned_set_id))
+        
+        workout_exercise = cur.fetchone()
+        if not workout_exercise:
+            raise HTTPException(status_code=404, detail="Workout exercise not found for this planned set")
+        
+        # Check if set already logged
+        cur.execute("SELECT id FROM workout_set WHERE planned_set_id = ?", (planned_set_id,))
+        existing = cur.fetchone()
+        
+        if existing:
+            # Update existing set
+            with app_db.transaction(conn) as cur:
+                cur.execute("""
+                    UPDATE workout_set 
+                    SET reps = ?, weight = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE planned_set_id = ?
+                """, (reps, weight, planned_set_id))
+        else:
+            # Create new set
+            with app_db.transaction(conn) as cur:
+                cur.execute("""
+                    INSERT INTO workout_set (workout_exercise_id, planned_set_id, set_number, reps, weight)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (workout_exercise["workout_exercise_id"], planned_set_id, workout_exercise["set_number"], reps, weight))
+        
+        return {"message": "Set logged successfully"}
 
 
 @app.post("/api/v2/workouts/{workout_id}/finish")

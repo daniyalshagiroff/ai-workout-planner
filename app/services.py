@@ -5,6 +5,7 @@ Business logic for Program ↔ Workout schema, including invariant checks A/B/C 
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
 from .repo import UserRepo, ExerciseRepo, ProgramRepo, WorkoutRepo
+from . import db as app_db
 from . import schemas, repo
 
 
@@ -102,7 +103,134 @@ def log_workout_set(workout_id: int, position: int, planned_set_id: int, set_num
 
 def finish_workout(workout_id: int, notes: Optional[str]) -> Dict[str, Any]:
     WorkoutRepo.finish(workout_id, None, notes)
+    # After finishing a workout, apply next-week progression from actuals (+1 reps)
+    try:
+        _apply_next_week_progression_from_actuals(workout_id)
+    except Exception:
+        # Best-effort; do not break finish if progression fails
+        pass
     return WorkoutRepo.get_workout(workout_id)  # type: ignore
+
+
+def _apply_next_week_progression_from_actuals(workout_id: int) -> None:
+    """Populate next week's planned_set for the same day using actuals from this workout.
+
+    Rules:
+    - Only proceed if ALL planned sets for this day have actuals logged in this workout.
+    - Copy weight as-is (can be NULL). Copy reps as actual_reps + 1 (min 1).
+    - For next week same day and same exercise position/set_number:
+        - If planned_set exists: update reps/weight.
+        - If not: insert planned_set.
+    Idempotent: running multiple times will keep the same resulting values.
+    """
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+
+        # 1) Gather workout → program/week/day info
+        cur.execute(
+            """
+            SELECT w.id AS workout_id, w.program_day_id,
+                   pw.program_id, pw.week_number, pd.day_of_week
+            FROM workout w
+            JOIN program_day pd ON pd.id = w.program_day_id
+            JOIN program_week pw ON pw.id = pd.program_week_id
+            WHERE w.id = ?
+            """,
+            (workout_id,),
+        )
+        wrow = cur.fetchone()
+        if not wrow:
+            return
+
+        program_id = wrow[2]
+        week_number = wrow[3]
+        day_of_week = wrow[4]
+
+        # 2) Collect planned sets and actuals for this workout/day
+        cur.execute(
+            """
+            SELECT ps.id AS planned_set_id,
+                   ps.set_number,
+                   pde.position,
+                   ws.reps AS actual_reps,
+                   ws.weight AS actual_weight
+            FROM program_day pd
+            JOIN program_day_exercise pde ON pde.program_day_id = pd.id
+            JOIN planned_set ps ON ps.program_day_exercise_id = pde.id
+            LEFT JOIN workout_exercise we
+                ON we.program_day_exercise_id = pde.id AND we.workout_id = ?
+            LEFT JOIN workout_set ws
+                ON ws.workout_exercise_id = we.id AND ws.planned_set_id = ps.id
+            WHERE pd.id = ?
+            ORDER BY pde.position, ps.set_number
+            """,
+            (workout_id, wrow[1]),
+        )
+        rows = cur.fetchall()
+        if not rows:
+            return
+
+        total_planned = len(rows)
+        completed = sum(1 for r in rows if r[3] is not None)
+        if completed < total_planned:
+            # Day not fully completed; skip progression
+            return
+
+        next_week = week_number + 1
+
+        # 3) Ensure next week/day exists
+        next_day = ensure_day(program_id, next_week, day_of_week)
+        next_day_id = next_day["id"]
+
+        # 4) Upsert planned sets for next week based on actuals
+        with app_db.transaction(conn) as tcur:
+            for planned_set_id, set_number, position, actual_reps, actual_weight in rows:
+                # Safety: if somehow actual is missing, skip (should not happen due to check above)
+                if actual_reps is None:
+                    continue
+
+                new_reps = max(1, int(actual_reps) + 1)
+                new_weight = actual_weight  # can be None
+
+                # Find matching exercise (same position) in next week's same day
+                tcur.execute(
+                    """
+                    SELECT id FROM program_day_exercise
+                    WHERE program_day_id = ? AND position = ?
+                    """,
+                    (next_day_id, position),
+                )
+                pde_next = tcur.fetchone()
+                if not pde_next:
+                    # No matching exercise in next week/day → skip
+                    continue
+
+                pde_next_id = pde_next[0]
+
+                # Check if next planned_set exists
+                tcur.execute(
+                    """
+                    SELECT id FROM planned_set
+                    WHERE program_day_exercise_id = ? AND set_number = ?
+                    """,
+                    (pde_next_id, set_number),
+                )
+                ps_next = tcur.fetchone()
+                if ps_next:
+                    # Update
+                    tcur.execute(
+                        "UPDATE planned_set SET reps = ?, weight = ? WHERE id = ?",
+                        (new_reps, new_weight, ps_next[0]),
+                    )
+                else:
+                    # Insert
+                    tcur.execute(
+                        """
+                        INSERT INTO planned_set (program_day_exercise_id, set_number, reps, weight)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (pde_next_id, set_number, new_reps, new_weight),
+                    )
 
 
 # Reports

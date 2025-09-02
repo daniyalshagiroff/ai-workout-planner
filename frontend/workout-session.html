@@ -339,6 +339,13 @@
         
         async function init() {
             try {
+                // Require auth
+                const meRes = await fetch('/api/v2/auth/me', { credentials: 'include' });
+                const me = await meRes.json();
+                if (!me.authenticated) {
+                    showError('Please log in to view a workout session.');
+                    return;
+                }
                 // Get workout ID from URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const workoutId = urlParams.get('workout_id');

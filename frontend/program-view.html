@@ -52,8 +52,18 @@
         day.appendChild(list); c.appendChild(day);
       });
 
-      // Show follow plan button
-      document.getElementById('follow-plan-section').style.display = 'block';
+      // Show follow plan button only if authenticated
+      try {
+        const meRes = await fetch('/api/v2/auth/me', { credentials: 'include' });
+        const me = await meRes.json();
+        if (me.authenticated) {
+          document.getElementById('follow-plan-section').style.display = 'block';
+        } else {
+          document.getElementById('follow-plan-section').style.display = 'none';
+        }
+      } catch (_) {
+        document.getElementById('follow-plan-section').style.display = 'none';
+      }
     }
     
     // Handle follow plan button click

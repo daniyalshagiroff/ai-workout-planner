@@ -288,6 +288,8 @@
         
         let currentTab = 1;
         let programData = {};
+        let currentUser = null;
+        let currentProgramId = null;
         
         async function init() {
             const programName = q('program_name');
@@ -297,6 +299,26 @@
             }
             
             try {
+                // Require auth
+                const meRes = await fetch('/api/v2/auth/me', { credentials: 'include' });
+                const me = await meRes.json();
+                if (!me.authenticated) {
+                    document.getElementById('loading').style.display = 'none';
+                    showError('Please log in to follow a plan.');
+                    return;
+                }
+                currentUser = me.user;
+
+                // Find program id by title
+                try {
+                    const programsRes = await fetch('/api/v2/programs/list');
+                    if (programsRes.ok) {
+                        const programs = await programsRes.json();
+                        const match = programs.find(p => (p.title || '').toUpperCase() === programName.toUpperCase());
+                        if (match) currentProgramId = match.id;
+                    }
+                } catch {}
+
                 // Get program weeks count
                 const weeksData = await fetchJSON(`/api/programs/${encodeURIComponent(programName)}/weeks`);
                 programData = weeksData;
@@ -367,7 +389,8 @@
             const dayStatuses = await Promise.all(
                 weekData.days.map(async (day) => {
                     try {
-                        const response = await fetch(`/api/v2/programs/3/weeks/${weekData.week_number}/days/${day.day_number}/status?user_id=1`);
+                        if (!currentProgramId || !currentUser) return { dayNumber: day.day_number, completed: false, totalSets: 0, completedSets: 0 };
+                        const response = await fetch(`/api/v2/programs/${currentProgramId}/weeks/${weekData.week_number}/days/${day.day_number}/status?user_id=${currentUser.id}`);
                         if (response.ok) {
                             const status = await response.json();
                             return {
@@ -446,16 +469,24 @@
         async function startWorkout(weekNumber, dayNumber) {
             try {
                 console.log('Starting workout for Week', weekNumber, 'Day', dayNumber);
-                
+                if (!currentUser) {
+                    showError('Please log in to start a workout.');
+                    return;
+                }
+                if (!currentProgramId) {
+                    showError('Program not found.');
+                    return;
+                }
+
                 const formData = new FormData();
-                formData.append('owner_user_id', '1');
-                formData.append('program_id', '3'); // FOUNDATIONAL PLAN
+                formData.append('owner_user_id', String(currentUser.id));
+                formData.append('program_id', String(currentProgramId));
                 formData.append('week_number', weekNumber);
                 formData.append('day_of_week', dayNumber);
                 
                 console.log('Sending API request to start workout:', {
-                    owner_user_id: 1,
-                    program_id: 3,
+                    owner_user_id: currentUser.id,
+                    program_id: currentProgramId,
                     week_number: weekNumber,
                     day_of_week: dayNumber
                 });

@@ -239,7 +239,7 @@ async def api_log_set(workout_id: int, position: int, planned_set_id: int, set_n
 
 
 @app.get("/api/v2/workouts/{workout_id}/session")
-async def api_get_workout_session(workout_id: int):
+async def api_get_workout_session(request: Request, workout_id: int):
     """Get workout session data with exercises and planned sets"""
     with app_db.get_connection() as conn:
         cur = conn.cursor()
@@ -259,6 +259,11 @@ async def api_get_workout_session(workout_id: int):
         if not workout:
             raise HTTPException(status_code=404, detail="Workout not found")
         
+        token = request.cookies.get(COOKIE_NAME)
+        auth_user_id = verify_token(token) if token else None
+        if not auth_user_id or auth_user_id != workout["owner_user_id"]:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
         # Get exercises with their planned sets
         cur.execute("""
             SELECT we.id, we.position, e.name as exercise_name,
@@ -532,11 +537,16 @@ async def api_select_program(
 
 
 @app.get("/api/v2/user-programs")
-async def api_get_user_programs(user_id: int):
-    """Get all programs selected by a user"""
+async def api_get_user_programs(request: Request, user_id: Optional[int] = None):
+    """Get all programs selected by the authenticated user. Ignores user_id query param."""
+    token = request.cookies.get(COOKIE_NAME)
+    auth_user_id = verify_token(token) if token else None
+    if not auth_user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     with app_db.get_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT up.id, up.user_id, up.program_id, up.started_at, up.is_active, 
                    up.current_week, up.current_day, up.notes, up.created_at,
                    p.title as program_title, p.description as program_description
@@ -544,24 +554,26 @@ async def api_get_user_programs(user_id: int):
             JOIN program p ON p.id = up.program_id
             WHERE up.user_id = ?
             ORDER BY up.created_at DESC
-        """, (user_id,))
-        
+            """,
+            (auth_user_id,),
+        )
         programs = []
         for row in cur.fetchall():
-            programs.append({
-                "id": row["id"],
-                "user_id": row["user_id"],
-                "program_id": row["program_id"],
-                "program_title": row["program_title"],
-                "program_description": row["program_description"],
-                "started_at": row["started_at"],
-                "is_active": bool(row["is_active"]),
-                "current_week": row["current_week"],
-                "current_day": row["current_day"],
-                "notes": row["notes"],
-                "created_at": row["created_at"]
-            })
-        
+            programs.append(
+                {
+                    "id": row["id"],
+                    "user_id": row["user_id"],
+                    "program_id": row["program_id"],
+                    "program_title": row["program_title"],
+                    "program_description": row["program_description"],
+                    "started_at": row["started_at"],
+                    "is_active": bool(row["is_active"]),
+                    "current_week": row["current_week"],
+                    "current_day": row["current_day"],
+                    "notes": row["notes"],
+                    "created_at": row["created_at"],
+                }
+            )
         return programs
 
 
@@ -609,39 +621,53 @@ async def api_remove_user_program(user_program_id: int):
 
 
 @app.get("/api/v2/programs/{program_id}/weeks/{week_number}/days/{day_number}/status")
-async def api_get_day_status(program_id: int, week_number: int, day_number: int, user_id: int = 1):
+async def api_get_day_status(request: Request, program_id: int, week_number: int, day_number: int):
     """Get completion status for a specific day"""
     with app_db.get_connection() as conn:
         cur = conn.cursor()
-        
-        # Find the program day
-        cur.execute("""
+        token = request.cookies.get(COOKIE_NAME)
+        auth_user_id = verify_token(token) if token else None
+        if not auth_user_id:
+            cur.execute(
+                """
+                SELECT pd.id
+                FROM program_day pd
+                JOIN program_week pw ON pw.id = pd.program_week_id
+                WHERE pw.program_id = ? AND pw.week_number = ? AND pd.day_of_week = ?
+                """,
+                (program_id, week_number, day_number),
+            )
+            day = cur.fetchone()
+            if not day:
+                raise HTTPException(status_code=404, detail="Day not found")
+            return {"completed": False, "total_sets": 0, "completed_sets": 0}
+        cur.execute(
+            """
             SELECT pd.id
             FROM program_day pd
             JOIN program_week pw ON pw.id = pd.program_week_id
             WHERE pw.program_id = ? AND pw.week_number = ? AND pd.day_of_week = ?
-        """, (program_id, week_number, day_number))
-        
+        """,
+            (program_id, week_number, day_number),
+        )
         day = cur.fetchone()
         if not day:
             raise HTTPException(status_code=404, detail="Day not found")
-        
-        # Get all planned sets for this day
-        cur.execute("""
+        cur.execute(
+            """
             SELECT ps.id
             FROM planned_set ps
             JOIN program_day_exercise pde ON pde.id = ps.program_day_exercise_id
             WHERE pde.program_day_id = ?
-        """, (day["id"],))
-        
+        """,
+            (day["id"],),
+        )
         planned_sets = cur.fetchall()
         total_sets = len(planned_sets)
-        
         if total_sets == 0:
             return {"completed": True, "total_sets": 0, "completed_sets": 0}
-        
-        # Get completed sets for this day
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(*) as completed_count
             FROM workout_set ws
             JOIN planned_set ps ON ps.id = ws.planned_set_id
@@ -653,15 +679,15 @@ async def api_get_day_status(program_id: int, week_number: int, day_number: int,
                 LIMIT 1
             )
             WHERE pde.program_day_id = ? AND w.owner_user_id = ?
-        """, (day["id"], user_id))
-        
+        """,
+            (day["id"], auth_user_id),
+        )
         completed_result = cur.fetchone()
         completed_sets = completed_result["completed_count"] if completed_result else 0
-        
         return {
             "completed": completed_sets >= total_sets,
             "total_sets": total_sets,
-            "completed_sets": completed_sets
+            "completed_sets": completed_sets,
         }
 
 

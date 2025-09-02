@@ -88,6 +88,8 @@
             <div class="program-arrow" onclick="viewPlan('${p.title}')">→</div>
           </div>
         `;
+        // Make entire card clickable for viewing the program
+        card.addEventListener('click', () => viewPlan(p.title));
         plans.appendChild(card);
       });
     }

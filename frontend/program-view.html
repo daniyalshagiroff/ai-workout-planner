@@ -25,17 +25,24 @@
       const programName = q('program_name');
       if(!programName){ document.getElementById('week-view').textContent = 'No program selected'; return; }
       document.getElementById('title').textContent = programName;
-      
-      // Show week 1 only via legacy export endpoint
-      const data = await (await fetch(`/api/programs/${encodeURIComponent(programName)}/export`)).json();
+
+      // Load weeks count
+      const weeks = await fetchJSON(`/api/programs/${encodeURIComponent(programName)}/weeks`);
+      const weeksCount = weeks.weeks_count || 0;
       const c = document.getElementById('week-view');
       c.innerHTML = '';
-      if(!data.days || !data.days.length){ c.textContent = 'No days found'; return; }
-      data.days.forEach((d, idx)=>{
+      if(!weeksCount){ c.textContent = 'No weeks found'; return; }
+
+      // Load week 1 data
+      const week1 = await fetchJSON(`/api/programs/${encodeURIComponent(programName)}/weeks/1`);
+      if(!week1.days || !week1.days.length){ c.textContent = 'No days found'; return; }
+
+      week1.days.forEach((d, idx)=>{
         const day = document.createElement('div');
         day.className = 'day-card';
         day.style.marginBottom = '12px';
-        day.innerHTML = `<div class="day-title"><h3>Day ${idx+1}</h3></div>`;
+        const dayNumber = (d.day_number != null ? d.day_number : (idx+1));
+        day.innerHTML = `<div class="day-title"><h3>Day ${dayNumber}</h3></div>`;
         const list = document.createElement('ul'); list.className = 'exercise-list';
         d.exercises.forEach(name=>{
           const li = document.createElement('li'); li.className = 'exercise-item';
@@ -44,7 +51,7 @@
         });
         day.appendChild(list); c.appendChild(day);
       });
-      
+
       // Show follow plan button
       document.getElementById('follow-plan-section').style.display = 'block';
     }

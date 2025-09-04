@@ -14,10 +14,19 @@ SYSTEM_PROMPT = (
     "You are a fitness AI coach. Your job is to output STRICT JSON objects only, never prose. "
     "You must follow evidence-based hypertrophy principles while keeping output formatting constraints: "
     "(1) volume drives growth; (2) distribute volume across 2–4 touches per muscle/week; "
-    "(3) rep ranges 6–10, 8–15, 12–20+ work if 0–3 RIR; (4) rest: compounds 120–180s, isolation ≥90s; "
-    "(5) full ROM and lengthened-position movements; (6) double progression; (7) if underperforming 2 weeks, cut volume 2–4 sets/week or extend rest; "
-    "(8) deload on accumulated fatigue (−30–50% volume); (9) recovery limits volume (protein 1.6–2.2 g/kg/day, creatine 3–5 g/day if no contraindications, sleep 7–9h). "
-    "Apply these rules implicitly in values, but DO NOT explain them. Output must be valid JSON: no comments, no trailing commas, no code fences, no markdown."
+    "(3) rep ranges 6–10, 8–15, 12–20+ work if 0–3 RIR; "
+    "(4) rest: compounds 120–180s, isolation ≥90s; "
+    "(5) full ROM and lengthened-position movements. "
+    "Apply these rules implicitly in values, but DO NOT explain them. "
+    "Always generate programs that train the whole body through the week, covering chest, back, legs, arms, and shoulders. "
+    "Exclude abs unless abs are explicitly set as priority. "
+    "Each training day must contain between 4 and 8 exercises: "
+    "- if days_per_week = 3 → strictly 7–8 exercises per day; "
+    "- if days_per_week = 4 → strictly 6–7 exercises per day; "
+    "- if days_per_week = 5 → strictly 5–6 exercises per day; "
+    "The number of working sets per exercise must be adapted to the user’s experience level: "
+    "novice = lower bound, intermediate = mid, advanced = higher bound. "
+    "Output must be valid JSON: no comments, no trailing commas, no code fences, no markdown."
 )
 
 
@@ -54,6 +63,7 @@ SCHEMA_BLOCK = (
     "STRICT RULES: Do not add or reorder keys; do not wrap the JSON in markdown; do not include backticks; return only the JSON object."
 )
 
+
 def build_user_prompt(*, owner_user_id: int, title: str, description: str, experience: str, days_per_week: int, equipment: str, priority: str) -> str:
     header = (
         "Generate a weekly training program and return STRICTLY AND ONLY a valid JSON object matching the SCHEMA and KEY ORDER below. "
@@ -70,12 +80,15 @@ def build_user_prompt(*, owner_user_id: int, title: str, description: str, exper
         "CONTENT RULES (apply silently; do NOT mention them):\n"
         "- Weekly volume (hard sets 0–3 RIR): novice 8–12; intermediate 10–16; advanced 12–20; priority muscles +20–30%; per session ≤10 sets.\n"
         "- Frequency: 2–4 touches/wk per priority muscle; align with days_per_week.\n"
-        "- Reps: compounds 6–10; hypertrophy 8–15; isolation 12–20+; Rest: compounds 120–180s; isolation ≥90s; Week 1 RPE partially null.\n"
-        "- Use concrete muscle_group (chest, shoulders, back, quads, hamstrings, glutes, biceps, triceps, calves, abs, rear delts, etc.).\n"
+        "- Reps: compounds 6–10; hypertrophy 8–15; isolation 12–20+. Rest: compounds 120–180s; isolation ≥90s; Week 1 RPE partially null.\n"
+        "- Use concrete muscle_group (chest, shoulders, back, quads, hamstrings, glutes, biceps, triceps, calves, rear delts, etc.).\n"
         "- Use concrete equipment (barbell, dumbbell, machine, cable, bodyweight, smith, etc.) or null.\n"
-        "- Each day: 3–6 exercises. Each exercise: 2–5 working sets.\n\n"
+        "- EXERCISE COUNT STRICT RULE: if days_per_week = 3 → 7–8 exercises/day; if days_per_week = 4 → 6–7; if days_per_week = 5 → 5–6.\n"
+        "- Each exercise: 2–5 working sets depending on experience (novice 2–3; intermediate 3–4; advanced 4–5).\n\n"
     )
     return header + SCHEMA_BLOCK
+
+
 
 
 
@@ -145,7 +158,7 @@ def generate_weekly_program(
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        max_tokens=500,
+        max_tokens=7000,
     )
 
     content = response.choices[0].message.content or ""
@@ -187,7 +200,7 @@ def generate_weekly_program_raw(
             {"role": "user", "content": user_prompt},
         ],
         response_format={"type": "json_object"},
-        max_tokens=500,
+        max_tokens=7000,
     )
 
     content = response.choices[0].message.content or ""

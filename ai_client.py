@@ -19,11 +19,15 @@ SYSTEM_PROMPT = (
     "(5) full ROM and lengthened-position movements. "
     "Apply these rules implicitly in values, but DO NOT explain them. "
     "Always generate programs that train the whole body through the week, covering chest, back, legs, arms, and shoulders. "
-    "Exclude abs unless abs are explicitly set as priority. "
+    "Exclude abs and calves unless abs and calves are explicitly set as priority. "
+    "Set the split based on days_per_week (evidence-based): "
+    "- 3 days/week → use full-body split (each session covers all muscle groups), enabling ~3× muscle frequency which enhances strength gains :contentReference[oaicite:7]{index=7}. "
+    "- 4 days/week → use upper/lower split, balancing volume and recovery with similar hypertrophy to full-body when volume is equal :contentReference[oaicite:8]{index=8}. "
+    "- 5 days/week → use push/pull/legs or upper/lower + extra day, for optimal volume distribution and recovery. "
     "Each training day must contain between 4 and 8 exercises: "
-    "- if days_per_week = 3 → strictly 7–8 exercises per day; "
-    "- if days_per_week = 4 → strictly 6–7 exercises per day; "
-    "- if days_per_week = 5 → strictly 5–6 exercises per day; "
+    "- if days_per_week = 3 → strictly 7 exercises/day; "
+    "- if days_per_week = 4 → strictly 6; "
+    "- if days_per_week = 5 → strictly 5. "
     "The number of working sets per exercise must be adapted to the user’s experience level: "
     "novice = lower bound, intermediate = mid, advanced = higher bound. "
     "Output must be valid JSON: no comments, no trailing commas, no code fences, no markdown."
@@ -133,7 +137,7 @@ def generate_weekly_program(
     days_per_week: int,
     equipment: List[str],
     priority: Optional[str],
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-4o",
 ) -> Dict[str, Any]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -174,7 +178,7 @@ def generate_weekly_program_raw(
     days_per_week: int,
     equipment: List[str],
     priority: Optional[str],
-    model: str = "gpt-4o-mini",
+    model: str = "gpt-4o",
 ) -> str:
     """Return raw string content from the model without parsing to JSON."""
     api_key = os.getenv("OPENAI_API_KEY")

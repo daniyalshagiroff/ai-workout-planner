@@ -75,13 +75,12 @@ OUTPUT MUST MATCH THIS SCHEMA EXACTLY (NO CHANGES):
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5-mini",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            response_format={"type": "json_object"},
-            max_tokens=500,
+            response_format={"type": "json_object"}
         )
         print(f"id: {resp.id}")
         print(f"model: {resp.model}")

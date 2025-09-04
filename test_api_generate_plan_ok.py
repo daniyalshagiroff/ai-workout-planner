@@ -4,7 +4,7 @@ import requests
 
 
 def main() -> None:
-    url = "http://localhost:8001/api/v2/ai/generate-plan?raw=1"
+    url = "http://localhost:8001/api/v2/ai/generate-plan"
     payload = {
         "owner_user_id": 1,
         "title": "AI Program",
@@ -12,11 +12,11 @@ def main() -> None:
         "experience": "novice",
         "days": 3,
         "equipment": ["dumbbell", "barbell"],
-        "priorities": "chest"
+        "priorities": ["chest", "legs"]
     }
 
     try:
-        resp = requests.post(url, json=payload, timeout=60)
+        resp = requests.post(url, json=payload, timeout=120)
     except Exception as e:
         print(f"REQUEST FAILED: {e}")
         sys.exit(1)

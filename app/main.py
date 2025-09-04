@@ -6,14 +6,17 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi import Response, Request, Form
+from fastapi import Body
 import uvicorn
 from typing import Optional
+from typing import Dict, Any, List
 
 from . import services
 from . import db as app_db
 from .repo import UserRepo
 from .security import hash_password, verify_password, sign_token, verify_token
 from . import db as app_db
+from ai_client import generate_weekly_program, generate_weekly_program_raw
 
 app = FastAPI(
     title="IRON AI Workout Planner",
@@ -93,7 +96,20 @@ async def api_create_exercise(
                 raise HTTPException(status_code=400, detail="owner_user_id is required for user-scoped exercise")
         return services.create_exercise_v2(owner_user_id, name, muscle_group, equipment, is_global)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        try:
+            # Fallback: return raw model output with 200 to aid debugging/UX
+            content = generate_weekly_program_raw(
+                owner_user_id=owner_user_id,
+                title=title,
+                description=description,
+                experience=experience,
+                days_per_week=days_per_week,
+                equipment=equipment,
+                priority=priority_joined,
+            )
+            return {"output": content, "error": str(e)}
+        except Exception as e2:
+            raise HTTPException(status_code=400, detail=f"{e}; raw_failed: {e2}")
 
 
 @app.get("/api/v2/exercises")
@@ -111,7 +127,7 @@ async def api_create_program(
     try:
         return services.create_program_v2(owner_user_id, title, description)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/api/v2/programs/{program_id}/weeks/{week_number}")
@@ -201,6 +217,25 @@ async def api_start_workout(
             # Return existing workout
             return {"workout_id": existing["id"], "message": "Workout already exists"}
         
+        # Ensure planned sets exist for this day; if none and week_number>1, generate from actuals of previous week
+        # Ensure planned sets exist for this day; if none and week_number>1, generate from actuals of previous week
+        cur.execute(
+            """
+            SELECT COUNT(ps.id) as cnt
+            FROM program_day_exercise pde
+            LEFT JOIN planned_set ps ON ps.program_day_exercise_id = pde.id
+            WHERE pde.program_day_id = ?
+            """,
+            (day["id"],),
+        )
+        ps_cnt = cur.fetchone()["cnt"] if cur.fetchone() else 0
+        if ps_cnt == 0 and week_number > 1:
+            try:
+                # Generate planned sets for this week/day from actuals (idempotent)
+                services.generate_week_progression_from_actuals(program_id, week_number - 1, week_number, owner_user_id)
+            except Exception:
+                pass
+
         # Get exercises for this day first
         cur.execute("""
             SELECT pde.id, pde.exercise_id, pde.position
@@ -229,6 +264,29 @@ async def api_start_workout(
         
         return {"workout_id": workout_id, "message": "Workout started successfully"}
 
+
+@app.post("/api/v2/programs/{program_id}/weeks/{to_week}/progress")
+async def api_progress_week(program_id: int, to_week: int, from_week: int = Query(...)):
+    """Generate planned sets for week `to_week` based on `from_week` with progression rules."""
+    try:
+        result = services.generate_week_progression(program_id, from_week, to_week)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v2/programs/{program_id}/weeks/{to_week}/progress-from-actuals")
+async def api_progress_week_from_actuals(request: Request, program_id: int, to_week: int, from_week: int = Query(...)):
+    """Generate planned sets for week `to_week` based on user's actuals in `from_week` (fallback to planned)."""
+    token = request.cookies.get(COOKIE_NAME)
+    auth_user_id = verify_token(token) if token else None
+    if not auth_user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        result = services.generate_week_progression_from_actuals(program_id, from_week, to_week, auth_user_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/v2/workouts/{workout_id}/log-set")
 async def api_log_set(workout_id: int, position: int, planned_set_id: int, set_number: int, reps: int, weight: Optional[float] = None, rpe: Optional[float] = None, rest_seconds: Optional[int] = None):
@@ -665,7 +723,7 @@ async def api_get_day_status(request: Request, program_id: int, week_number: int
         planned_sets = cur.fetchall()
         total_sets = len(planned_sets)
         if total_sets == 0:
-            return {"completed": True, "total_sets": 0, "completed_sets": 0}
+            return {"completed": False, "total_sets": 0, "completed_sets": 0}
         cur.execute(
             """
             SELECT COUNT(*) as completed_count
@@ -743,6 +801,60 @@ async def export_program(program_name: str):
             "days": days_out,
         }
         return export
+
+
+# AI generation endpoint
+@app.post("/api/v2/ai/generate-plan")
+async def api_ai_generate_plan(payload: Dict[str, Any] = Body(...), raw: Optional[int] = Query(None)):
+    """Generate a one-week JSON plan via OpenAI using form selections from ai-plan page.
+    If raw=1 is provided, return raw model output (for debugging formatting issues)."""
+    try:
+        owner_user_id: int = int(payload.get("owner_user_id"))
+        title: str = str(payload.get("title") or "AI Program")
+        description: Optional[str] = payload.get("description")
+        # Map experience from UI to expected values
+        raw_experience: str = str(payload.get("experience") or "novice")
+        experience_map = {"novice": "novice", "6_12": "intermediate", "1_3": "intermediate", "3_plus": "advanced"}
+        experience = experience_map.get(raw_experience, "novice")
+        days_per_week: int = int(payload.get("days") or payload.get("days_per_week") or 3)
+        # Normalize equipment (accept list or comma-separated string)
+        equipment_raw = payload.get("equipment")
+        if isinstance(equipment_raw, str):
+            equipment: List[str] = [s.strip() for s in equipment_raw.split(",") if s.strip()]
+        else:
+            equipment = list(equipment_raw or [])
+        # Normalize priorities (accept list or comma-separated string)
+        priorities_raw = payload.get("priorities")
+        if isinstance(priorities_raw, str):
+            priorities_list: List[str] = [s.strip() for s in priorities_raw.split(",") if s.strip()]
+        else:
+            priorities_list = list(priorities_raw or [])
+        priority_joined = ", ".join(priorities_list[:2]) if priorities_list else None
+
+        if raw:
+            content = generate_weekly_program_raw(
+                owner_user_id=owner_user_id,
+                title=title,
+                description=description,
+                experience=experience,
+                days_per_week=days_per_week,
+                equipment=equipment,
+                priority=priority_joined,
+            )
+            return {"raw": content}
+
+        result = generate_weekly_program(
+            owner_user_id=owner_user_id,
+            title=title,
+            description=description,
+            experience=experience,
+            days_per_week=days_per_week,
+            equipment=equipment,
+            priority=priority_joined,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":

@@ -54,6 +54,10 @@
 
         <button class="primary-button" id="btn-generate">Generate Plan</button>
         <div id="ai-result" class="muted-text" style="margin-top:12px;"></div>
+        <div id="preview" style="margin-top:16px; display:none;">
+          <div id="preview-header" class="card" style="padding:12px 16px; margin-bottom:12px;"></div>
+          <div id="preview-days" style="display:grid; gap:12px;"></div>
+        </div>
         <p class="muted-text" style="margin-top:16px;"><a class="link" href="/">Back to home</a></p>
     </div>
 
@@ -78,10 +82,84 @@
       const equipment = Array.from(document.querySelectorAll('.eq:checked')).map(x => x.value);
       const priorities = Array.from(document.querySelectorAll('.prio:checked')).map(x => x.value);
 
-      const payload = { experience, days: Number(days), equipment, priorities };
+      const payload = {
+        owner_user_id: 1,
+        title: 'AI Program',
+        description: null,
+        experience,
+        days: Number(days),
+        equipment,
+        priorities
+      };
       const res = document.getElementById('ai-result');
-      res.textContent = 'Collected: ' + JSON.stringify(payload);
-      // TODO: вызвать AI-эндпоинт для генерации плана и затем редирект на предпросмотр
+      const preview = document.getElementById('preview');
+      const previewHeader = document.getElementById('preview-header');
+      const previewDays = document.getElementById('preview-days');
+
+      res.textContent = 'Generating...';
+      preview.style.display = 'none';
+      previewHeader.innerHTML = '';
+      previewDays.innerHTML = '';
+
+      try {
+        const resp = await fetch('/api/v2/ai/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          res.textContent = 'Error: ' + (err.detail || resp.statusText);
+          return;
+        }
+        const plan = await resp.json();
+        res.textContent = '';
+
+        // Render header
+        previewHeader.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="muted-text" style="font-size:12px;">Generated Program</div>
+              <div style="font-weight:600; font-size:18px;">${plan.title}</div>
+              <div class="muted-text" style="margin-top:4px;">Week ${plan.weeks?.[0]?.week_number || 1}</div>
+            </div>
+            <button class="secondary-button" id="btn-save-plan">Save to My Programs</button>
+          </div>
+        `;
+
+        // Render days
+        const days = plan.weeks?.[0]?.days || [];
+        for (const day of days) {
+          const dayCard = document.createElement('div');
+          dayCard.className = 'card';
+          dayCard.style.padding = '12px 16px';
+          dayCard.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-weight:600;">Day ${day.day_of_week}</div>
+            </div>
+            <div style="display:grid; gap:8px;">
+              ${day.exercises.map(ex => `
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <div style="font-weight:500;">${ex.position}. ${ex.name}</div>
+                    <div class="muted-text" style="font-size:12px;">${ex.muscle_group} · ${ex.equipment ?? ''}</div>
+                  </div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    ${ex.planned_sets.map(s => `
+                      <span class="badge">#${s.set_number}: ${s.reps} reps${s.rest_seconds ? ` · ${s.rest_seconds}s` : ''}${s.rpe != null ? ` · RPE ${s.rpe}` : ''}</span>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+          previewDays.appendChild(dayCard);
+        }
+
+        preview.style.display = 'block';
+      } catch (e) {
+        res.textContent = 'Error: ' + (e && e.message ? e.message : e);
+      }
     });
     </script>
 </body>

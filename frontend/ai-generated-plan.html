@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Generated Plan - IRON AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+        /* Loading animation styles */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg-primary);
+            position: relative;
+        }
+
+        .loading-content {
+            text-align: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        .loading-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .loading-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            font-weight: 400;
+        }
+
+        .ai-brain {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .brain-circle {
+            position: absolute;
+            border: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: brain-pulse 2s ease-in-out infinite;
+        }
+
+        .brain-circle:nth-child(1) {
+            width: 40px;
+            height: 40px;
+            top: 20px;
+            left: 20px;
+            animation-delay: 0s;
+        }
+
+        .brain-circle:nth-child(2) {
+            width: 60px;
+            height: 60px;
+            top: 10px;
+            left: 10px;
+            animation-delay: 0.3s;
+        }
+
+        .brain-circle:nth-child(3) {
+            width: 80px;
+            height: 80px;
+            top: 0;
+            left: 0;
+            animation-delay: 0.6s;
+        }
+
+        .brain-circle:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            top: -10px;
+            left: -10px;
+            animation-delay: 0.9s;
+        }
+
+        @keyframes brain-pulse {
+            0%, 100% {
+                transform: scale(0.8);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        .loading-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 2rem;
+        }
+
+        .loading-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            animation: dot-bounce 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        .loading-dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Generated plan styles */
+        .plan-container {
+            min-height: 100vh;
+            background: var(--bg-primary);
+            padding: 2rem 1rem;
+            display: none;
+        }
+
+        .plan-header {
+            max-width: 1200px;
+            margin: 0 auto 3rem;
+            text-align: center;
+        }
+
+        .plan-title {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .plan-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .plan-stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .plan-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .day-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .day-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-primary);
+            box-shadow: 0 12px 24px var(--accent-glow);
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .day-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .day-badge {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--text-primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .exercises-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .exercise-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .exercise-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 62, 62, 0.2);
+        }
+
+        .exercise-header {
+            margin-bottom: 0.75rem;
+        }
+
+        .exercise-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .exercise-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-badge {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .sets-grid {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .set-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            min-width: 60px;
+        }
+
+        .set-card:hover {
+            border-color: var(--accent-primary);
+            background: rgba(255, 62, 62, 0.1);
+        }
+
+        .set-number {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.2rem;
+        }
+
+        .set-reps {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .set-rest {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .add-to-plans-section {
+            text-align: center;
+            margin-top: 4rem;
+            padding: 3rem 2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .add-to-plans-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .add-to-plans-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .add-to-plans-button {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: var(--text-primary);
+            padding: 1rem 3rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--accent-glow);
+        }
+
+        .add-to-plans-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px var(--accent-glow);
+        }
+
+        .add-to-plans-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .add-to-plans-button .button-glow {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .add-to-plans-button:hover .button-glow {
+            left: 100%;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .plan-title {
+                font-size: 2rem;
+            }
+            
+            .plan-stats {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .days-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sets-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading State -->
+    <div id="loading-container" class="loading-container">
+        <div class="loading-content">
+            <div class="ai-brain">
+                <div class="brain-circle"></div>
+                <div class="brain-circle"></div>
+                <div class="brain-circle"></div>
+                <div class="brain-circle"></div>
+            </div>
+            <h1 class="loading-title">AI GENERATING</h1>
+            <p class="loading-subtitle">AI is generating your workout program!</p>
+            <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+        </div>
+        
+        <!-- Background effects -->
+        <div class="hero-background">
+            <div class="grid-overlay"></div>
+            <div class="pulse-circles">
+                <div class="pulse-circle"></div>
+                <div class="pulse-circle"></div>
+                <div class="pulse-circle"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generated Plan State -->
+    <div id="plan-container" class="plan-container">
+        <div class="plan-header">
+            <h1 class="plan-title" id="plan-title">AI Program</h1>
+            <p class="plan-subtitle" id="plan-description">Personalized workout program created by AI</p>
+            
+            <div class="plan-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-days">0</div>
+                    <div class="stat-label">Days per week</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-exercises">0</div>
+                    <div class="stat-label">Exercises</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-sets">0</div>
+                    <div class="stat-label">Total sets</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="plan-content">
+            <div class="days-grid" id="days-grid">
+                <!-- Days will be populated here -->
+            </div>
+
+            <div class="add-to-plans-section">
+                <h2 class="add-to-plans-title">Ready to train!</h2>
+                <p class="add-to-plans-subtitle">Save this program to "My Plans" and start your journey to results</p>
+                <button class="add-to-plans-button" id="add-to-plans-btn">
+                    <span class="button-glow"></span>
+                    ADD TO "MY PLANS"
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get plan data from URL parameters or localStorage
+        function getPlanData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const planData = urlParams.get('plan');
+            
+            if (planData) {
+                try {
+                    return JSON.parse(decodeURIComponent(planData));
+                } catch (e) {
+                    console.error('Error parsing plan data:', e);
+                }
+            }
+            
+            // Fallback to localStorage
+            const storedPlan = localStorage.getItem('generatedPlan');
+            if (storedPlan) {
+                try {
+                    return JSON.parse(storedPlan);
+                } catch (e) {
+                    console.error('Error parsing stored plan:', e);
+                }
+            }
+            
+            return null;
+        }
+
+        // Render the generated plan
+        function renderPlan(plan) {
+            const loadingContainer = document.getElementById('loading-container');
+            const planContainer = document.getElementById('plan-container');
+            
+            // Hide loading, show plan
+            loadingContainer.style.display = 'none';
+            planContainer.style.display = 'block';
+            
+            // Update header
+            document.getElementById('plan-title').textContent = plan.title || 'AI Program';
+            document.getElementById('plan-description').textContent = plan.description || 'Personalized workout program created by AI';
+            
+            // Calculate stats
+            const week = plan.weeks?.[0];
+            const days = week?.days || [];
+            const totalDays = days.length;
+            const totalExercises = days.reduce((sum, day) => sum + (day.exercises?.length || 0), 0);
+            const totalSets = days.reduce((sum, day) => 
+                sum + (day.exercises?.reduce((exSum, ex) => exSum + (ex.planned_sets?.length || 0), 0) || 0), 0);
+            
+            // Update stats
+            document.getElementById('total-days').textContent = totalDays;
+            document.getElementById('total-exercises').textContent = totalExercises;
+            document.getElementById('total-sets').textContent = totalSets;
+            
+            // Render days
+            const daysGrid = document.getElementById('days-grid');
+            daysGrid.innerHTML = '';
+            
+            days.forEach((day, index) => {
+                const dayCard = document.createElement('div');
+                dayCard.className = 'day-card';
+                
+                const exercises = day.exercises || [];
+                const exercisesHtml = exercises.map(exercise => {
+                    const sets = exercise.planned_sets || [];
+                    const setsHtml = sets.map(set => `
+                        <div class="set-card">
+                            <div class="set-number">Set ${set.set_number}</div>
+                            <div class="set-reps">${set.reps} reps</div>
+                            ${set.rest_seconds ? `<div class="set-rest">${set.rest_seconds}s rest</div>` : ''}
+                        </div>
+                    `).join('');
+                    
+                    return `
+                        <div class="exercise-card">
+                            <div class="exercise-header">
+                                <div>
+                                    <div class="exercise-name">${exercise.name}</div>
+                                    <div class="exercise-meta">
+                                        <span class="meta-badge">${exercise.muscle_group}</span>
+                                        ${exercise.equipment ? `<span class="meta-badge">${exercise.equipment}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="sets-grid">
+                                ${setsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                dayCard.innerHTML = `
+                    <div class="day-header">
+                        <h3 class="day-title">Day ${day.day_of_week}</h3>
+                        <div class="day-badge">${exercises.length} exercises</div>
+                    </div>
+                    <div class="exercises-list">
+                        ${exercisesHtml}
+                    </div>
+                `;
+                
+                daysGrid.appendChild(dayCard);
+            });
+        }
+
+        // Add to plans functionality
+        document.getElementById('add-to-plans-btn').addEventListener('click', async function() {
+            const button = this;
+            const originalText = button.textContent;
+            
+            button.disabled = true;
+            button.textContent = 'SAVING...';
+            
+            try {
+                const plan = getPlanData();
+                if (!plan) {
+                    throw new Error('No plan data found');
+                }
+                
+                // Save plan to backend
+                const response = await fetch('/api/v2/ai/save-plan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(plan)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Plan saved successfully:', result);
+                
+                button.textContent = 'SAVED!';
+                button.style.background = 'linear-gradient(135deg, #00ff00, #00cc00)';
+                
+                setTimeout(() => {
+                    // Redirect to my plans page
+                    window.location.href = '/my-plans.html';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error saving plan:', error);
+                button.textContent = 'ERROR';
+                button.style.background = 'linear-gradient(135deg, #ff0000, #cc0000)';
+                
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }
+        });
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            const plan = getPlanData();
+            
+            if (plan) {
+                // Simulate loading time
+                setTimeout(() => {
+                    renderPlan(plan);
+                }, 3000);
+            } else {
+                // No plan data, redirect back to AI plan page
+                setTimeout(() => {
+                    window.location.href = '/ai-plan.html';
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>

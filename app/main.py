@@ -32,6 +32,16 @@ async def root():
     return FileResponse("frontend/index.html")
 
 
+@app.get("/ai-generated-plan.html")
+async def ai_generated_plan():
+    return FileResponse("frontend/ai-generated-plan.html")
+
+
+@app.get("/my-plans.html")
+async def my_plans():
+    return FileResponse("frontend/my-plans.html")
+
+
 # Auth endpoints (cookie-based)
 COOKIE_NAME = "auth_token"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -853,6 +863,123 @@ async def api_ai_generate_plan(payload: Dict[str, Any] = Body(...), raw: Optiona
             priority=priority_joined,
         )
         return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
+
+
+@app.post("/api/v2/ai/save-plan")
+async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
+    """Save an AI-generated plan to the database."""
+    try:
+        owner_user_id: int = int(plan_data.get("owner_user_id"))
+        title: str = str(plan_data.get("title") or "AI Program")
+        description: Optional[str] = plan_data.get("description")
+        weeks = plan_data.get("weeks", [])
+        
+        if not weeks:
+            raise HTTPException(status_code=400, detail="No weeks data provided")
+        
+        # Create the program
+        program = services.create_program_v2(owner_user_id, title, description)
+        program_id = program["id"]
+        
+        # Process each week
+        for week_data in weeks:
+            week_number = week_data.get("week_number", 1)
+            days = week_data.get("days", [])
+            
+            # Ensure week exists
+            services.ensure_week(program_id, week_number)
+            
+            # Process each day
+            for day_data in days:
+                day_of_week = day_data.get("day_of_week")
+                exercises = day_data.get("exercises", [])
+                
+                if not day_of_week or not exercises:
+                    continue
+                
+                # Ensure day exists
+                services.ensure_day(program_id, week_number, day_of_week)
+                
+                # Process each exercise
+                for exercise_data in exercises:
+                    exercise_name = exercise_data.get("name")
+                    muscle_group = exercise_data.get("muscle_group")
+                    equipment = exercise_data.get("equipment")
+                    position = exercise_data.get("position", 1)
+                    notes = exercise_data.get("notes")
+                    planned_sets = exercise_data.get("planned_sets", [])
+                    
+                    if not exercise_name or not muscle_group:
+                        continue
+                    
+                    # Create or get exercise
+                    try:
+                        exercise = services.create_exercise_v2(
+                            owner_user_id=owner_user_id,
+                            name=exercise_name,
+                            muscle_group=muscle_group,
+                            equipment=equipment,
+                            is_global=False
+                        )
+                        exercise_id = exercise["id"]
+                    except Exception:
+                        # Exercise might already exist, try to find it
+                        exercises_list = services.list_exercises_v2(owner_user_id)
+                        existing_exercise = next(
+                            (ex for ex in exercises_list if ex["name"] == exercise_name), 
+                            None
+                        )
+                        if existing_exercise:
+                            exercise_id = existing_exercise["id"]
+                        else:
+                            continue
+                    
+                    # Add exercise to day
+                    try:
+                        services.add_day_exercise(
+                            program_id=program_id,
+                            week_number=week_number,
+                            day_of_week=day_of_week,
+                            exercise_id=exercise_id,
+                            position=position,
+                            notes=notes
+                        )
+                    except Exception:
+                        # Exercise might already be added to this day
+                        pass
+                    
+                    # Add planned sets
+                    for set_data in planned_sets:
+                        set_number = set_data.get("set_number", 1)
+                        reps = set_data.get("reps", 8)
+                        weight = set_data.get("weight")
+                        rpe = set_data.get("rpe")
+                        rest_seconds = set_data.get("rest_seconds")
+                        
+                        try:
+                            services.add_planned_set(
+                                program_id=program_id,
+                                week_number=week_number,
+                                day_of_week=day_of_week,
+                                position=position,
+                                set_number=set_number,
+                                reps=reps,
+                                weight=weight,
+                                rpe=rpe,
+                                rest_seconds=rest_seconds
+                            )
+                        except Exception:
+                            # Set might already exist
+                            pass
+        
+        return {
+            "message": "Plan saved successfully",
+            "program_id": program_id,
+            "program_title": title
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
 

@@ -24,6 +24,19 @@ def list_exercises(user_id: Optional[int]) -> List[Dict[str, Any]]:
     return ExerciseRepo.list_for_user(user_id)
 
 
+# V2 aliases for API compatibility
+def create_exercise_v2(owner_user_id: Optional[int], name: str, muscle_group: str, equipment: Optional[str], is_global: bool) -> Dict[str, Any]:
+    return create_exercise(owner_user_id, name, muscle_group, equipment, is_global)
+
+
+def list_exercises_v2(user_id: Optional[int]) -> List[Dict[str, Any]]:
+    return list_exercises(user_id)
+
+
+def create_program_v2(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
+    return create_program(owner_user_id, title, description)
+
+
 # Program building
 def create_program(owner_user_id: int, title: str, description: Optional[str]) -> Dict[str, Any]:
     pid = ProgramRepo.create(owner_user_id, title, description)
@@ -296,7 +309,7 @@ async def get_program_detail(program_name: str) -> schemas.ProgramDetail:
     )
 
 
-async def create_program(name: str, days_per_week: int) -> schemas.ProgramSummary:
+async def create_program_async(name: str, days_per_week: int) -> schemas.ProgramSummary:
     """Create a new program."""
     # Check if program already exists
     existing = repo.get_program_by_name(name)
@@ -430,7 +443,7 @@ async def create_exercise(name: str, equipment: str, target_muscle: str) -> sche
     )
 
 
-async def list_exercises() -> List[schemas.ExerciseInfo]:
+async def list_exercises_async() -> List[schemas.ExerciseInfo]:
     """List all exercises."""
     exercises = repo.list_all_exercises()
     return [

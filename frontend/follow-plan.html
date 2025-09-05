@@ -292,8 +292,10 @@
         let currentProgramId = null;
         
         async function init() {
-            const programName = q('program_name');
-            if (!programName) {
+            const programId = q('program_id');
+            const programName = q('program_name'); // Fallback for old links
+            
+            if (!programId && !programName) {
                 showError('No program selected');
                 return;
             }
@@ -309,21 +311,32 @@
                 }
                 currentUser = me.user;
 
-                // Find program id by title
-                try {
-                    const programsRes = await fetch('/api/v2/programs/list');
-                    if (programsRes.ok) {
-                        const programs = await programsRes.json();
-                        const match = programs.find(p => (p.title || '').toUpperCase() === programName.toUpperCase());
-                        if (match) currentProgramId = match.id;
-                    }
-                } catch {}
+                // Set program id
+                if (programId) {
+                    currentProgramId = parseInt(programId);
+                } else if (programName) {
+                    // Fallback: Find program id by title (for old links)
+                    try {
+                        const programsRes = await fetch('/api/v2/programs/list');
+                        if (programsRes.ok) {
+                            const programs = await programsRes.json();
+                            const match = programs.find(p => (p.title || '').toUpperCase() === programName.toUpperCase());
+                            if (match) currentProgramId = match.id;
+                        }
+                    } catch {}
+                }
 
-                // Get program weeks count
-                const weeksData = await fetchJSON(`/api/programs/${encodeURIComponent(programName)}/weeks`);
-                programData = weeksData;
+                if (!currentProgramId) {
+                    showError('Program not found');
+                    return;
+                }
+
+                // Get program info and weeks count
+                const programInfo = await fetchJSON(`/api/v2/programs/${currentProgramId}/info`);
+                const weeksData = await fetchJSON(`/api/programs/${currentProgramId}/weeks`);
+                programData = { ...weeksData, ...programInfo };
                 
-                document.getElementById('program-title').textContent = weeksData.program_name;
+                document.getElementById('program-title').textContent = programInfo.title || weeksData.program_name;
                 
                 if (weeksData.weeks_count === 0) {
                     showError('No weeks found for this program');
@@ -375,7 +388,7 @@
             tabsContent.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="loading-spinner"></div></div>';
             
             try {
-                const weekData = await fetchJSON(`/api/programs/${encodeURIComponent(programData.program_name)}/weeks/${weekNumber}`);
+                const weekData = await fetchJSON(`/api/programs/${currentProgramId}/weeks/${weekNumber}`);
                 await renderWeekContent(weekData);
             } catch (error) {
                 tabsContent.innerHTML = `<div class="error-message">Failed to load week ${weekNumber}: ${error.message}</div>`;

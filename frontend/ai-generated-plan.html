@@ -592,10 +592,24 @@
             button.textContent = 'SAVING...';
             
             try {
+                // Get current authenticated user
+                const meRes = await fetch('/api/v2/auth/me', { credentials: 'include' });
+                const me = await meRes.json();
+                
+                if (!me.authenticated) {
+                    throw new Error('Please log in to save plans');
+                }
+                
                 const plan = getPlanData();
                 if (!plan) {
                     throw new Error('No plan data found');
                 }
+                
+                // Backend will determine owner_user_id from authentication
+                // Remove owner_user_id from plan data to avoid confusion
+                delete plan.owner_user_id;
+                console.log('Saving plan for authenticated user:', me.user.id);
+                console.log('Plan data before save:', plan);
                 
                 // Save plan to backend
                 const response = await fetch('/api/v2/ai/save-plan', {

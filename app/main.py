@@ -106,20 +106,7 @@ async def api_create_exercise(
                 raise HTTPException(status_code=400, detail="owner_user_id is required for user-scoped exercise")
         return services.create_exercise_v2(owner_user_id, name, muscle_group, equipment, is_global)
     except Exception as e:
-        try:
-            # Fallback: return raw model output with 200 to aid debugging/UX
-            content = generate_weekly_program_raw(
-                owner_user_id=owner_user_id,
-                title=title,
-                description=description,
-                experience=experience,
-                days_per_week=days_per_week,
-                equipment=equipment,
-                priority=priority_joined,
-            )
-            return {"output": content, "error": str(e)}
-        except Exception as e2:
-            raise HTTPException(status_code=400, detail=f"{e}; raw_failed: {e2}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/v2/exercises")
@@ -238,7 +225,8 @@ async def api_start_workout(
             """,
             (day["id"],),
         )
-        ps_cnt = cur.fetchone()["cnt"] if cur.fetchone() else 0
+        ps_result = cur.fetchone()
+        ps_cnt = ps_result["cnt"] if ps_result else 0
         if ps_cnt == 0 and week_number > 1:
             try:
                 # Generate planned sets for this week/day from actuals (idempotent)
@@ -477,11 +465,38 @@ async def api_report_progress(program_id: int, exercise_id: int):
 async def api_programs_list():
     with app_db.get_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, title, description FROM program ORDER BY title")
+        cur.execute("SELECT id, title, description FROM program WHERE owner_user_id = 1 ORDER BY title")
         return [dict(row) for row in cur.fetchall()]
 
 
-# Get program weeks count
+# Get program info by ID
+@app.get("/api/v2/programs/{program_id}/info")
+async def get_program_info(program_id: int):
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, description FROM program WHERE id = ?", (program_id,))
+        program = cur.fetchone()
+        if not program:
+            raise HTTPException(status_code=404, detail="Program not found")
+        return dict(program)
+
+# Get program weeks count by ID
+@app.get("/api/programs/{program_id}/weeks")
+async def get_program_weeks_by_id(program_id: int):
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, title FROM program WHERE id = ?", (program_id,))
+        prog = cur.fetchone()
+        if not prog:
+            raise HTTPException(status_code=404, detail="Program not found")
+        
+        # Get weeks count
+        cur.execute("SELECT COUNT(*) as weeks_count FROM program_week WHERE program_id = ?", (program_id,))
+        weeks_count = cur.fetchone()["weeks_count"]
+        
+        return {"program_id": prog["id"], "program_name": prog["title"], "weeks_count": weeks_count}
+
+# Get program weeks count by name (legacy)
 @app.get("/api/programs/{program_name}/weeks")
 async def get_program_weeks(program_name: str):
     with app_db.get_connection() as conn:
@@ -506,7 +521,57 @@ async def get_program_weeks(program_name: str):
         return {"program_name": prog["title"], "weeks_count": weeks_count}
 
 
-# Get specific week data
+# Get specific week data by ID
+@app.get("/api/programs/{program_id}/weeks/{week_number}")
+async def get_program_week_by_id(program_id: int, week_number: int):
+    with app_db.get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, title FROM program WHERE id = ?", (program_id,))
+        prog = cur.fetchone()
+        if not prog:
+            raise HTTPException(status_code=404, detail="Program not found")
+        
+        # Get specific week
+        cur.execute("SELECT id FROM program_week WHERE program_id = ? AND week_number = ?", (program_id, week_number))
+        week = cur.fetchone()
+        if not week:
+            raise HTTPException(status_code=404, detail=f"Week {week_number} not found for this program")
+        week_id = week["id"]
+
+        # Days and exercises
+        cur.execute(
+            "SELECT id, day_of_week FROM program_day WHERE program_week_id = ? ORDER BY day_of_week",
+            (week_id,),
+        )
+        days_rows = cur.fetchall()
+        print(f"DEBUG: Found {len(days_rows)} days for week {week_number} of program {program_id}")
+        days_out = []
+        for d in days_rows:
+            cur.execute(
+                """
+                SELECT e.name
+                FROM program_day_exercise pde
+                JOIN exercise e ON e.id = pde.exercise_id
+                WHERE pde.program_day_id = ?
+                ORDER BY pde.position
+                """,
+                (d["id"],),
+            )
+            ex_names = [r[0] for r in cur.fetchall()]
+            print(f"DEBUG: Day {d['day_of_week']} has {len(ex_names)} exercises: {ex_names}")
+            days_out.append({
+                "day_number": d["day_of_week"],
+                "exercises": ex_names,
+            })
+
+        return {
+            "program_id": prog["id"],
+            "program_name": prog["title"],
+            "week_number": week_number,
+            "days": days_out,
+        }
+
+# Get specific week data by name (legacy)
 @app.get("/api/programs/{program_name}/weeks/{week_number}")
 async def get_program_week(program_name: str, week_number: int):
     with app_db.get_connection() as conn:
@@ -820,7 +885,29 @@ async def api_ai_generate_plan(payload: Dict[str, Any] = Body(...), raw: Optiona
     If raw=1 is provided, return raw model output (for debugging formatting issues)."""
     try:
         owner_user_id: int = int(payload.get("owner_user_id"))
-        title: str = str(payload.get("title") or "AI Program")
+        
+        # Generate unique title based on user parameters and timestamp
+        import datetime
+        experience = payload.get("experience", "novice")
+        days = payload.get("days", 3)
+        equipment = payload.get("equipment", [])
+        priorities = payload.get("priorities", [])
+        
+        # Create descriptive title
+        exp_map = {"novice": "Beginner", "6_12": "Intermediate", "1_3": "Advanced", "3_plus": "Expert"}
+        exp_name = exp_map.get(experience, "Beginner")
+        
+        priority_text = ""
+        if priorities:
+            priority_text = f" - {', '.join(priorities[:2])}"
+        
+        equipment_text = ""
+        if equipment:
+            equipment_text = f" ({', '.join(equipment[:2])})"
+        
+        timestamp = datetime.datetime.now().strftime("%m%d_%H%M")
+        title: str = f"{exp_name} {days}Day{priority_text}{equipment_text} - {timestamp}"
+        
         description: Optional[str] = payload.get("description")
         # Map experience from UI to expected values
         raw_experience: str = str(payload.get("experience") or "novice")
@@ -862,16 +949,38 @@ async def api_ai_generate_plan(payload: Dict[str, Any] = Body(...), raw: Optiona
             equipment=equipment,
             priority=priority_joined,
         )
+        
+        # Debug: Print the AI-generated result
+        print(f"DEBUG: AI generated result:")
+        print(f"  Title: {result.get('title')}")
+        print(f"  Weeks: {len(result.get('weeks', []))}")
+        if result.get('weeks'):
+            first_week = result['weeks'][0]
+            print(f"  First week days: {len(first_week.get('days', []))}")
+            for i, day in enumerate(first_week.get('days', [])):
+                print(f"    Day {i+1}: day_of_week={day.get('day_of_week')}, exercises={len(day.get('exercises', []))}")
+        
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/api/v2/ai/save-plan")
-async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
+async def api_save_ai_plan(request: Request, plan_data: Dict[str, Any] = Body(...)):
     """Save an AI-generated plan to the database."""
     try:
-        owner_user_id: int = int(plan_data.get("owner_user_id"))
+        # Get authenticated user ID from request
+        token = request.cookies.get(COOKIE_NAME)
+        auth_user_id = verify_token(token) if token else None
+        if not auth_user_id:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Use authenticated user ID, not the one from plan data
+        owner_user_id: int = auth_user_id
+        print(f"DEBUG: Authenticated user_id: {auth_user_id}")
+        print(f"DEBUG: Plan data owner_user_id: {plan_data.get('owner_user_id')}")
+        print(f"DEBUG: Using owner_user_id: {owner_user_id}")
+        
         title: str = str(plan_data.get("title") or "AI Program")
         description: Optional[str] = plan_data.get("description")
         weeks = plan_data.get("weeks", [])
@@ -883,20 +992,37 @@ async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
         program = services.create_program_v2(owner_user_id, title, description)
         program_id = program["id"]
         
-        # Process each week
-        for week_data in weeks:
-            week_number = week_data.get("week_number", 1)
-            days = week_data.get("days", [])
-            
+        # Get the first week data (AI generates only 1 week)
+        first_week = weeks[0] if weeks else {}
+        first_week_days = first_week.get("days", [])
+        print(f"DEBUG: First week has {len(first_week_days)} days")
+        for i, day in enumerate(first_week_days):
+            exercises = day.get('exercises', [])
+            print(f"DEBUG: Day {i+1}: day_of_week={day.get('day_of_week')} with {len(exercises)} exercises")
+            for j, exercise in enumerate(exercises):
+                print(f"  Exercise {j+1}: {exercise.get('name')} ({exercise.get('muscle_group')})")
+        
+        # Generate 8 weeks based on the first week
+        for week_number in range(1, 9):
             # Ensure week exists
             services.ensure_week(program_id, week_number)
             
+            # For week 1, use the original data; for other weeks, copy the structure
+            if week_number == 1:
+                days_to_process = first_week_days
+            else:
+                # Copy the structure from week 1 for weeks 2-8
+                days_to_process = first_week_days
+            
             # Process each day
-            for day_data in days:
+            for day_data in days_to_process:
                 day_of_week = day_data.get("day_of_week")
                 exercises = day_data.get("exercises", [])
                 
+                print(f"DEBUG: Processing week {week_number}, day {day_of_week} with {len(exercises)} exercises")
+                
                 if not day_of_week or not exercises:
+                    print(f"DEBUG: Skipping day {day_of_week} - no day_of_week or no exercises")
                     continue
                 
                 # Ensure day exists
@@ -916,29 +1042,34 @@ async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
                     
                     # Create or get exercise
                     try:
-                        exercise = services.create_exercise_v2(
-                            owner_user_id=owner_user_id,
-                            name=exercise_name,
-                            muscle_group=muscle_group,
-                            equipment=equipment,
-                            is_global=False
+                        # Use the correct create_exercise function directly from services module
+                        exercise = services.create_exercise(
+                            owner_user_id,
+                            exercise_name,
+                            muscle_group,
+                            equipment,
+                            False
                         )
                         exercise_id = exercise["id"]
-                    except Exception:
+                        print(f"DEBUG: Created new exercise {exercise_name} with ID {exercise_id}")
+                    except Exception as e:
+                        print(f"DEBUG: Failed to create exercise {exercise_name}: {e}")
                         # Exercise might already exist, try to find it
-                        exercises_list = services.list_exercises_v2(owner_user_id)
+                        exercises_list = services.list_exercises(owner_user_id)
                         existing_exercise = next(
                             (ex for ex in exercises_list if ex["name"] == exercise_name), 
                             None
                         )
                         if existing_exercise:
                             exercise_id = existing_exercise["id"]
+                            print(f"DEBUG: Found existing exercise {exercise_name} with ID {exercise_id}")
                         else:
+                            print(f"DEBUG: Exercise {exercise_name} not found, skipping...")
                             continue
                     
                     # Add exercise to day
                     try:
-                        services.add_day_exercise(
+                        result = services.add_day_exercise(
                             program_id=program_id,
                             week_number=week_number,
                             day_of_week=day_of_week,
@@ -946,17 +1077,32 @@ async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
                             position=position,
                             notes=notes
                         )
-                    except Exception:
+                        print(f"DEBUG: Added exercise {exercise_name} to week {week_number}, day {day_of_week}, position {position}")
+                    except Exception as e:
+                        print(f"DEBUG: Error adding exercise {exercise_name} to day: {e}")
                         # Exercise might already be added to this day
                         pass
                     
-                    # Add planned sets
+                    # Add planned sets with progression for weeks 2-8
                     for set_data in planned_sets:
                         set_number = set_data.get("set_number", 1)
-                        reps = set_data.get("reps", 8)
-                        weight = set_data.get("weight")
+                        base_reps = set_data.get("reps", 8)
+                        base_weight = set_data.get("weight")
                         rpe = set_data.get("rpe")
                         rest_seconds = set_data.get("rest_seconds")
+                        
+                        # Apply progression for weeks 2-8
+                        if week_number > 1:
+                            # Increase reps by 1 every 2 weeks, or increase weight by 2.5% every week
+                            if week_number % 2 == 0:
+                                reps = base_reps + 1
+                                weight = base_weight
+                            else:
+                                reps = base_reps
+                                weight = base_weight * 1.025 if base_weight else None
+                        else:
+                            reps = base_reps
+                            weight = base_weight
                         
                         try:
                             services.add_planned_set(
@@ -974,6 +1120,21 @@ async def api_save_ai_plan(plan_data: Dict[str, Any] = Body(...)):
                             # Set might already exist
                             pass
         
+        # Auto-attach this new program to the creating user so it shows up in My Plans
+        try:
+            print(f"DEBUG: Creating user_program with user_id: {owner_user_id}, program_id: {program_id}")
+            with app_db.get_connection() as conn:
+                with app_db.transaction(conn) as cur:
+                    cur.execute(
+                        "INSERT INTO user_program (user_id, program_id) VALUES (?, ?)",
+                        (owner_user_id, program_id),
+                    )
+            print(f"DEBUG: Successfully created user_program")
+        except Exception as e:
+            print(f"DEBUG: Error creating user_program: {e}")
+            # If linkage already exists or insertion fails, continue without blocking
+            pass
+
         return {
             "message": "Plan saved successfully",
             "program_id": program_id,

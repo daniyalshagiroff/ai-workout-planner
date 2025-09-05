@@ -427,7 +427,7 @@ async def list_training_days(cycle_id: int) -> List[schemas.TrainingDayInfo]:
     ]
 
 
-async def create_exercise(name: str, equipment: str, target_muscle: str) -> schemas.ExerciseInfo:
+async def create_exercise_catalog(name: str, equipment: str, target_muscle: str) -> schemas.ExerciseInfo:
     """Create a new exercise in the catalog."""
     # Check if exercise already exists
     existing = repo.get_exercise_by_name(name)

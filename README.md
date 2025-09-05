@@ -1,170 +1,92 @@
 # IRON AI - Workout Planner
 
-A modern, AI-powered workout planning application with a bold, aggressive design aesthetic.
+**AI-планировщик тренировок** - современное веб-приложение для создания и отслеживания тренировочных программ с использованием искусственного интеллекта.
 
-## 🏗️ Architecture
+## 🎯 Главная цель
 
-The project follows a clean, layered architecture:
+Создать персональные тренировочные программы с помощью ИИ, адаптированные под индивидуальные потребности пользователя (опыт, оборудование, приоритеты), и обеспечить удобное отслеживание прогресса.
 
-```
-app/
-├── main.py          # FastAPI app + routes
-├── db.py            # SQLite connection & setup
-├── repo.py          # SQL functions (no SQL in handlers)
-├── services.py      # Business logic
-└── schemas.py       # Pydantic response schemas
-```
+## 🏗️ Принцип работы
 
-### Key Features
+1. **Пользователь регистрируется** и входит в систему
+2. **Выбирает параметры** для ИИ-генерации (опыт, дни в неделю, оборудование, приоритеты)
+3. **ИИ создает программу** на основе научных принципов бодибилдинга
+4. **Программа сохраняется** в личном кабинете пользователя
+5. **Пользователь тренируется** по программе и отслеживает прогресс
 
-- **Bold Design**: Aggressive red/orange color scheme with minimalist aesthetics
-- **FastAPI Backend**: Modern Python web framework with automatic API documentation
-- **SQLite Database**: Lightweight, file-based database with comprehensive workout tracking
-- **Responsive Frontend**: Clean, modern UI that works on all devices
-- **Program Management**: Full workout program lifecycle (programs → cycles → weeks → days → exercises → sets)
+## ⚡ Основные функции
 
-## 🚀 Quick Start
+### 🤖 ИИ-генерация программ
+- **Что делает**: Создает персональные тренировочные программы на основе параметров пользователя
+- **Для чего**: Экономит время на планировании, обеспечивает научно обоснованный подход
 
-### Prerequisites
+### 📊 Управление программами
+- **Что делает**: Сохраняет, активирует и удаляет тренировочные программы
+- **Для чего**: Позволяет иметь несколько программ и переключаться между ними
 
-- Python 3.8+
-- pip
+### 🏋️ Отслеживание тренировок
+- **Что делает**: Записывает выполненные подходы, веса, повторения и RPE
+- **Для чего**: Контролирует прогресс и корректирует нагрузку
 
-### Installation
+### 📈 Прогрессия нагрузки
+- **Что делает**: Автоматически увеличивает веса и повторения по неделям
+- **Для чего**: Обеспечивает постоянный прогресс и избегает плато
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd ai-workout-planner
-   ```
+### 👤 Персональный кабинет
+- **Что делает**: Хранит все программы и тренировки пользователя
+- **Для чего**: Централизованное место для управления тренировочным процессом
 
-2. **Install dependencies**
+## 🛠️ Технические особенности
+
+- **Backend**: FastAPI (Python) - быстрый и современный веб-фреймворк
+- **Frontend**: HTML/CSS/JavaScript - чистый и отзывчивый интерфейс
+- **База данных**: SQLite - легкая и надежная файловая БД
+- **ИИ**: OpenAI GPT - генерация программ на основе научных принципов
+- **Архитектура**: Чистая архитектура с разделением на слои
+
+## 🚀 Быстрый старт
+
+1. **Установите зависимости**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the application**
+2. **Запустите приложение**:
    ```bash
-   python init_and_run.py
+   python -m uvicorn app.main:app --reload
    ```
 
-4. **Open in browser**
-   - Main app: http://localhost:8000
-   - API docs: http://localhost:8000/docs
+3. **Откройте в браузере**: http://localhost:8000
 
-## 📁 Project Structure
+## 📁 Структура проекта
 
 ```
 ai-workout-planner/
-├── app/                    # FastAPI application
-│   ├── main.py            # Routes and app configuration
-│   ├── db.py              # Database connection and setup
-│   ├── repo.py            # Data access layer (SQL queries)
-│   ├── services.py        # Business logic
-│   └── schemas.py         # Pydantic models
-├── frontend/              # Static frontend files
-│   ├── index.html         # Landing page
-│   ├── workouts.html      # Program selection
-│   ├── program-foundational.html  # Program detail
-│   ├── styles.css         # Global styles
-│   ├── app.js             # Landing page logic
-│   ├── workouts.js        # Program selection logic
-│   └── program-foundational.js    # Program detail logic
-├── database/              # Database files
-│   ├── workout.db         # SQLite database
-│   ├── init_db.py         # Database initialization
-│   ├── seed_db.py         # Data seeding
-│   └── export_program.py  # JSON export (legacy)
-├── requirements.txt       # Python dependencies
-├── run_app.py            # Simple app runner
-├── init_and_run.py       # Full initialization + runner
-└── README.md             # This file
+├── app/                    # Backend приложение
+│   ├── main.py            # API endpoints
+│   ├── services.py        # Бизнес-логика
+│   ├── repo.py            # Работа с БД
+│   └── ai_client.py       # Интеграция с ИИ
+├── frontend/              # Frontend файлы
+│   ├── index.html         # Главная страница
+│   ├── ai-plan.html       # Генерация ИИ планов
+│   ├── my-plans.html      # Мои программы
+│   └── workout-session.html # Тренировка
+└── database/              # База данных
+    └── workout.db         # SQLite база
 ```
 
-## 🎨 Design Philosophy
+## 🎨 Дизайн
 
-- **Bold & Aggressive**: Red/orange color scheme (#ff3e3e, #ff6b35)
-- **Minimalist**: Clean typography, no clutter
-- **Modern**: Smooth animations and hover effects
-- **Responsive**: Works seamlessly on all devices
+- **Минималистичный** - фокус на функциональности
+- **Современный** - чистые линии и приятные цвета
+- **Отзывчивый** - работает на всех устройствах
+- **Интуитивный** - простота использования
 
-## 🗄️ Database Schema
+## 📝 Лицензия
 
-The application uses a comprehensive workout tracking schema:
-
-- **Programs**: Top-level workout programs
-- **Cycles**: Program iterations with start dates
-- **Weeks**: Weekly blocks within cycles
-- **Training Days**: Individual workout days
-- **Exercises**: Exercise catalog with equipment and target muscles
-- **Day Exercises**: Exercises assigned to specific days
-- **Sets**: Individual sets with weights, reps, RPE, and notes
-
-## 🔌 API Endpoints
-
-- `GET /` - Serve landing page
-- `GET /api/programs` - List all programs
-- `GET /api/programs/{name}` - Get program details
-- `GET /api/programs/{name}/export` - Export program for frontend
-
-## 🛠️ Development
-
-### Running in Development Mode
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Initialize database and run
-python init_and_run.py
-```
-
-### Database Operations
-
-```bash
-# Initialize database schema
-python -c "from app.db import init_database; init_database()"
-
-# Seed with foundational program
-python -c "from app.services import seed_foundational_program; seed_foundational_program()"
-```
-
-### API Documentation
-
-Once running, visit http://localhost:8000/docs for interactive API documentation.
-
-## 🎯 Current Features
-
-- ✅ Landing page with bold design
-- ✅ Program selection interface
-- ✅ Foundational Bodybuilding program
-- ✅ 3-day full body workout structure
-- ✅ Exercise tracking with sets and reps
-- ✅ FastAPI backend with automatic docs
-- ✅ SQLite database with comprehensive schema
-- ✅ Responsive design for all devices
-
-## 🚧 Future Enhancements
-
-- [ ] User authentication and profiles
-- [ ] Progress tracking and analytics
-- [ ] AI-powered workout generation
-- [ ] Mobile app
-- [ ] Social features and sharing
-- [ ] Integration with fitness trackers
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+MIT License - свободное использование и модификация.
 
 ---
 
-**IRON AI** - Train like the elite with AI-powered planning.
+**IRON AI** - Тренируйся как профессионал с ИИ-планировщиком.

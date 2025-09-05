@@ -16,7 +16,7 @@ from . import db as app_db
 from .repo import UserRepo
 from .security import hash_password, verify_password, sign_token, verify_token
 from . import db as app_db
-from ai_client import generate_weekly_program, generate_weekly_program_raw
+from .ai_client import generate_weekly_program, generate_weekly_program_raw
 
 app = FastAPI(
     title="IRON AI Workout Planner",

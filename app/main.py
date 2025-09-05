@@ -463,38 +463,24 @@ async def api_report_progress(program_id: int, exercise_id: int):
 # Read-only: list programs (for ready-made plans)
 @app.get("/api/v2/programs/list")
 async def api_programs_list():
-    with app_db.get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, title, description FROM program WHERE owner_user_id = 1 ORDER BY title")
-        return [dict(row) for row in cur.fetchall()]
+    return services.get_programs_list()
 
 
 # Get program info by ID
 @app.get("/api/v2/programs/{program_id}/info")
 async def get_program_info(program_id: int):
-    with app_db.get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, title, description FROM program WHERE id = ?", (program_id,))
-        program = cur.fetchone()
-        if not program:
-            raise HTTPException(status_code=404, detail="Program not found")
-        return dict(program)
+    try:
+        return services.get_program_info(program_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # Get program weeks count by ID
 @app.get("/api/programs/{program_id}/weeks")
 async def get_program_weeks_by_id(program_id: int):
-    with app_db.get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT id, title FROM program WHERE id = ?", (program_id,))
-        prog = cur.fetchone()
-        if not prog:
-            raise HTTPException(status_code=404, detail="Program not found")
-        
-        # Get weeks count
-        cur.execute("SELECT COUNT(*) as weeks_count FROM program_week WHERE program_id = ?", (program_id,))
-        weeks_count = cur.fetchone()["weeks_count"]
-        
-        return {"program_id": prog["id"], "program_name": prog["title"], "weeks_count": weeks_count}
+    try:
+        return services.get_program_weeks_count(program_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # Get program weeks count by name (legacy)
 @app.get("/api/programs/{program_name}/weeks")

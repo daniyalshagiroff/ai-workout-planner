@@ -1,92 +1,92 @@
 # IRON AI - Workout Planner
 
-**AI-планировщик тренировок** - современное веб-приложение для создания и отслеживания тренировочных программ с использованием искусственного интеллекта.
+**AI-powered workout planner** - a modern web application for creating and tracking workout programs using artificial intelligence.
 
-## 🎯 Главная цель
+## 🎯 Main Goal
 
-Создать персональные тренировочные программы с помощью ИИ, адаптированные под индивидуальные потребности пользователя (опыт, оборудование, приоритеты), и обеспечить удобное отслеживание прогресса.
+Create personalized workout programs using AI, tailored to individual user needs (experience, equipment, priorities), and provide convenient progress tracking.
 
-## 🏗️ Принцип работы
+## 🏗️ How It Works
 
-1. **Пользователь регистрируется** и входит в систему
-2. **Выбирает параметры** для ИИ-генерации (опыт, дни в неделю, оборудование, приоритеты)
-3. **ИИ создает программу** на основе научных принципов бодибилдинга
-4. **Программа сохраняется** в личном кабинете пользователя
-5. **Пользователь тренируется** по программе и отслеживает прогресс
+1. **User registers** and logs into the system
+2. **Selects parameters** for AI generation (experience, days per week, equipment, priorities)
+3. **AI creates a program** based on scientific bodybuilding principles
+4. **Program is saved** in the user's personal account
+5. **User trains** according to the program and tracks progress
 
-## ⚡ Основные функции
+## ⚡ Key Features
 
-### 🤖 ИИ-генерация программ
-- **Что делает**: Создает персональные тренировочные программы на основе параметров пользователя
-- **Для чего**: Экономит время на планировании, обеспечивает научно обоснованный подход
+### 🤖 AI Program Generation
+- **What it does**: Creates personalized workout programs based on user parameters
+- **Purpose**: Saves time on planning, ensures scientifically-based approach
 
-### 📊 Управление программами
-- **Что делает**: Сохраняет, активирует и удаляет тренировочные программы
-- **Для чего**: Позволяет иметь несколько программ и переключаться между ними
+### 📊 Program Management
+- **What it does**: Saves, activates, and removes workout programs
+- **Purpose**: Allows multiple programs and switching between them
 
-### 🏋️ Отслеживание тренировок
-- **Что делает**: Записывает выполненные подходы, веса, повторения и RPE
-- **Для чего**: Контролирует прогресс и корректирует нагрузку
+### 🏋️ Workout Tracking
+- **What it does**: Records completed sets, weights, reps, and RPE
+- **Purpose**: Monitors progress and adjusts workload
 
-### 📈 Прогрессия нагрузки
-- **Что делает**: Автоматически увеличивает веса и повторения по неделям
-- **Для чего**: Обеспечивает постоянный прогресс и избегает плато
+### 📈 Load Progression
+- **What it does**: Automatically increases weights and reps over weeks
+- **Purpose**: Ensures constant progress and avoids plateaus
 
-### 👤 Персональный кабинет
-- **Что делает**: Хранит все программы и тренировки пользователя
-- **Для чего**: Централизованное место для управления тренировочным процессом
+### 👤 Personal Dashboard
+- **What it does**: Stores all user programs and workouts
+- **Purpose**: Centralized place for managing training process
 
-## 🛠️ Технические особенности
+## 🛠️ Technical Features
 
-- **Backend**: FastAPI (Python) - быстрый и современный веб-фреймворк
-- **Frontend**: HTML/CSS/JavaScript - чистый и отзывчивый интерфейс
-- **База данных**: SQLite - легкая и надежная файловая БД
-- **ИИ**: OpenAI GPT - генерация программ на основе научных принципов
-- **Архитектура**: Чистая архитектура с разделением на слои
+- **Backend**: FastAPI (Python) - fast and modern web framework
+- **Frontend**: HTML/CSS/JavaScript - clean and responsive interface
+- **Database**: SQLite - lightweight and reliable file-based DB
+- **AI**: OpenAI GPT - program generation based on scientific principles
+- **Architecture**: Clean architecture with layer separation
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-1. **Установите зависимости**:
+1. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Запустите приложение**:
+2. **Run the application**:
    ```bash
    python -m uvicorn app.main:app --reload
    ```
 
-3. **Откройте в браузере**: http://localhost:8000
+3. **Open in browser**: http://localhost:8000
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
 ai-workout-planner/
-├── app/                    # Backend приложение
+├── app/                    # Backend application
 │   ├── main.py            # API endpoints
-│   ├── services.py        # Бизнес-логика
-│   ├── repo.py            # Работа с БД
-│   └── ai_client.py       # Интеграция с ИИ
-├── frontend/              # Frontend файлы
-│   ├── index.html         # Главная страница
-│   ├── ai-plan.html       # Генерация ИИ планов
-│   ├── my-plans.html      # Мои программы
-│   └── workout-session.html # Тренировка
-└── database/              # База данных
-    └── workout.db         # SQLite база
+│   ├── services.py        # Business logic
+│   ├── repo.py            # Database operations
+│   └── ai_client.py       # AI integration
+├── frontend/              # Frontend files
+│   ├── index.html         # Main page
+│   ├── ai-plan.html       # AI plan generation
+│   ├── my-plans.html      # My programs
+│   └── workout-session.html # Workout session
+└── database/              # Database
+    └── workout.db         # SQLite database
 ```
 
-## 🎨 Дизайн
+## 🎨 Design
 
-- **Минималистичный** - фокус на функциональности
-- **Современный** - чистые линии и приятные цвета
-- **Отзывчивый** - работает на всех устройствах
-- **Интуитивный** - простота использования
+- **Minimalist** - focus on functionality
+- **Modern** - clean lines and pleasant colors
+- **Responsive** - works on all devices
+- **Intuitive** - ease of use
 
-## 📝 Лицензия
+## 📝 License
 
-MIT License - свободное использование и модификация.
+MIT License - free use and modification.
 
 ---
 
-**IRON AI** - Тренируйся как профессионал с ИИ-планировщиком.
+**IRON AI** - Train like a pro with AI-powered planning.
